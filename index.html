@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Data_Form</title>
+    <!-- Preconnect to Google Fonts for performance optimization -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* --- CSS Custom Properties (Variables) --- */
+        /* Defines a consistent color palette and font stack for easy theming and maintenance. */
+        :root {
+            --accent-color: #3a86ff;
+            --accent-color-light: rgba(58, 134, 255, 0.15);
+            --success-color: #28a745;
+            --text-color: #212529;
+            --subtle-text-color: #6c757d;
+            --background-color: #f8f9fa;
+            --container-background: #ffffff;
+            --border-color: #dee2e6;
+            --disabled-color: #ced4da;
+            --font-main: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --font-heading: 'Poppins', var(--font-main);
+            --font-mono: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+        }
+
+        /* --- Core Layout & Typography --- */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Prevents the main page from scrolling, allowing the inner step content to scroll instead. */
+        }
+
+        body {
+            font-family: var(--font-main);
+            background: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            -webkit-font-smoothing: antialiased; /* Improves font rendering on WebKit browsers. */
+            -moz-osx-font-smoothing: grayscale; /* Improves font rendering on Firefox. */
+        }
+
+        /* The main container for the entire multi-step form flow. */
+        .flow-container {
+            width: 100%;
+            max-width: 680px; /* A comfortable reading width for most content. */
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 40px 50px;
+            background-color: var(--container-background);
+            box-shadow: 0 16px 60px -15px rgba(12, 25, 42, 0.12);
+            text-align: center;
+            border: 1px solid #e9ecef;
+            box-sizing: border-box; /* Ensures padding and border are included in the element's total width and height. */
+            transition: max-width 0.3s ease, padding 0.3s ease;
+        }
+
+        /* --- Progress Indicator --- */
+        .progress-indicator {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 2vh;
+            flex-shrink: 0; /* Prevents this element from shrinking when content grows. */
+        }
+
+        .progress-bar {
+            flex-grow: 1; /* Allows the bar to take up the remaining space. */
+            height: 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden; /* Ensures the inner bar's rounded corners are visible. */
+        }
+
+        .progress-bar-inner {
+            height: 100%;
+            width: 0; /* Initial width, animated via JavaScript. */
+            background-color: var(--accent-color);
+            border-radius: 4px;
+            transition: width 0.6s cubic-bezier(0.65, 0, 0.35, 1), background-color 0.4s;
+        }
+
+        #progress-text {
+            font-size: 14px;
+            color: var(--subtle-text-color);
+            font-weight: 500;
+            width: 90px; /* Fixed width to prevent layout shifts as text content changes. */
+            text-align: right;
+            transition: visibility 0.3s, opacity 0.3s;
+        }
+
+        /* --- UI Step Management --- */
+        .step {
+            display: none; /* Steps are hidden by default. */
+            animation: fadeIn 0.7s cubic-bezier(0.65, 0, 0.35, 1);
+            overflow-y: auto; /* Allows this area to scroll if content exceeds viewport height. */
+            padding: 1vh 5px;
+            flex-grow: 1; /* Allows this element to grow and fill the available vertical space. */
+            min-height: 0; /* Crucial for flexbox to allow shrinking and prevent overflow issues in a flex column. */
+        }
+
+        .step.visible {
+            display: block; /* The 'visible' class is toggled by JS to show the current step. */
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Content Styling --- */
+        h1 {
+            font-family: var(--font-heading);
+            font-size: clamp(1.8rem, 4vh, 2.2rem); /* Responsive font size. */
+            font-weight: 700;
+            margin-bottom: 1.5vh;
+        }
+
+        p {
+            color: var(--subtle-text-color);
+            line-height: 1.6;
+            margin-bottom: 3vh;
+            font-size: clamp(0.9rem, 2vh, 1rem);
+            max-width: 500px; /* Improves readability for paragraphs. */
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 2vh;
+            font-weight: 600;
+            font-size: clamp(1rem, 2.2vh, 1.1rem);
+        }
+
+        /* --- Custom Slider --- */
+        #anxietySlider {
+            -webkit-appearance: none; /* Removes default browser styling. */
+            appearance: none;
+            width: calc(100% - 28px); /* Makes room for the 28px thumb to prevent overflow. */
+            margin: 0 auto; /* Centers the now-smaller slider. */
+            height: 8px;
+            background: var(--border-color); /* The track color, will be overridden by a gradient in JS. */
+            border-radius: 4px;
+            outline: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        /* Custom styling for the slider thumb. */
+        #anxietySlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 28px;
+            height: 28px;
+            background: var(--thumb-color, var(--accent-color)); /* Color is set dynamically by JS. */
+            border-radius: 50%;
+            transition: transform 0.2s ease, background-color 0.3s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border: 4px solid white; /* Creates a clean "halo" effect. */
+        }
+
+        #anxietySlider:hover::-webkit-slider-thumb { transform: scale(1.1); }
+        #anxietySlider:focus-visible { box-shadow: 0 0 0 4px var(--accent-color-light); outline: none; }
+
+        /* --- Text Area & Character Counter --- */
+        .textarea-wrapper { position: relative; }
+        .textarea-wrapper.is-valid #typingArea { border-color: var(--success-color); }
+        .textarea-wrapper.is-valid #charCounter { color: var(--success-color); font-weight: 500; }
+
+        #typingArea {
+            width: 100%;
+            height: 20vh;
+            padding: 15px;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            resize: none; /* Prevents user from resizing the textarea. */
+            transition: border-color 0.3s, box-shadow 0.3s;
+            font-family: var(--font-main);
+        }
+
+        #typingArea:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 4px var(--accent-color-light);
+            outline: none;
+        }
+
+        #charCounter {
+            text-align: right;
+            font-size: 13px;
+            color: var(--subtle-text-color);
+            margin-top: 8px;
+            height: 15px; /* Fixed height to prevent layout shift when content appears. */
+            transition: color 0.3s;
+        }
+
+        /* --- Buttons --- */
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 3vh;
+            flex-shrink: 0;
+        }
+
+        /* Center the single button on the welcome and complete steps. */
+        #step-welcome .button-group,
+        #step-complete .button-group {
+            justify-content: center;
+        }
+
+        .btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s, opacity 0.3s, transform 0.2s, box-shadow 0.3s;
+        }
+
+        .btn:disabled {
+            background-color: var(--disabled-color);
+            cursor: not-allowed;
+            opacity: 0.8;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(58, 134, 255, 0.3);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(58, 134, 255, 0.2);
+        }
+
+        .btn.btn-secondary {
+            background-color: transparent;
+            color: var(--subtle-text-color);
+            box-shadow: none;
+        }
+
+        .btn.btn-secondary:hover:not(:disabled) {
+            background-color: #e9ecef;
+            color: var(--text-color);
+            transform: translateY(0);
+            box-shadow: none;
+        }
+
+        .btn.btn-success { background-color: var(--success-color); }
+        .btn.btn-success:hover:not(:disabled) { box-shadow: 0 6px 15px rgba(40, 167, 69, 0.3); }
+
+        /* --- Results & Completion View --- */
+        #step-complete h1 { color: var(--success-color); }
+
+        .data-summary {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            text-align: left;
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 2vh 0;
+            color: #495057;
+            font-size: 15px;
+            border: 1px solid var(--border-color);
+        }
+
+        .data-summary p { margin: 0; color: inherit; line-height: 1.5; }
+        
+        /* This rule hides the summary when the details element before it is open, creating a toggle effect. */
+        details[open] + .data-summary {
+            display: none;
+        }
+
+        details { margin-top: 20px; text-align: left; }
+
+        summary {
+            cursor: pointer;
+            padding: 12px 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            list-style: none; /* Removes the default disclosure triangle. */
+            color: var(--accent-color);
+            border-radius: 10px;
+            transition: background-color 0.2s, border-radius 0.3s;
+            border: 1px solid var(--border-color);
+        }
+
+        summary:hover {
+            background-color: var(--accent-color-light);
+            border-color: rgba(58, 134, 255, 0.5);
+        }
+
+        summary::-webkit-details-marker { display: none; } /* Hides the marker in WebKit browsers. */
+        summary .chevron { transition: transform 0.3s ease; }
+        details[open]>summary {
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            background-color: #f8f9fa;
+        }
+        details[open]>summary .chevron { transform: rotate(180deg); }
+
+        #output {
+            background-color: #f8f9fa;
+            color: #495057;
+            padding: 20px;
+            padding-left: 15px;
+            max-height: 20vh;
+            overflow-y: auto; /* Allows this area to scroll if JSON is long. */
+            font-family: var(--font-mono);
+            font-size: 13px;
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+        }
+
+        #output .line { display: flex; flex-direction: row; align-items: flex-start; white-space: pre-wrap; }
+        #output .line-number {
+            display: inline-block;
+            width: 2.5em;
+            padding-right: 1em;
+            text-align: right;
+            color: var(--subtle-text-color);
+            user-select: none; /* Prevents line numbers from being selected. */
+            flex-shrink: 0;
+        }
+        #output .line-content { word-break: break-all; }
+
+        /* --- WIDE VIEWPORT STYLES --- */
+        @media (min-width: 1024px) {
+            /* On large screens, remove the container's card-like appearance for a more integrated feel. */
+            .flow-container {
+                max-width: none;
+                box-shadow: none;
+                border: none;
+                padding: 5vh 8vw;
+                background-color: var(--background-color);
+            }
+
+            /* Constrain the content width within the full-width container for better readability. */
+            .step {
+                max-width: 650px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+        }
+        
+        /* --- MOBILE-SPECIFIC ADJUSTMENTS --- */
+        @media (max-width: 767px) {
+            /* On small screens, make the container edge-to-edge for a more app-like experience. */
+            .flow-container {
+                height: 100%;
+                border-radius: 0;
+                border: none;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <form name="data-collection-form" method="POST" data-netlify="true" style="width: 100%; height: 100%; display: flex; justify-content: center; align-items: center;">
+        <input type="hidden" name="form-name" value="data-collection-form" />
+        <input type="hidden" name="sessionData" />
+
+        <div class="flow-container">
+            <div class="progress-indicator">
+                <div class="progress-bar">
+                    <div id="progressBarInner" class="progress-bar-inner"></div>
+                </div>
+                <span id="progress-text"></span>
+            </div>
+
+            <!-- STEP 0: WELCOME SCREEN -->
+            <section id="step-welcome" class="step">
+                <h1>Help Us Train Our Model</h1>
+                <p>Thank you for participating. This short, anonymous session will help us collect data anonymously to train our model. Your contribution is greatly appreciated.</p>
+                <div class="button-group">
+                    <button id="toAnxietyBtn" class="btn" type="button">Get Started</button>
+                </div>
+            </section>
+
+            <!-- NEW STEP: MOBILE NOT SUPPORTED -->
+            <section id="step-mobile-block" class="step">
+                <h1>Desktop Access Required</h1>
+                <p>For an optimal experience and for technical reasons related to our data collection, this form must be completed on a desktop or laptop computer. Please revisit this page from a non-mobile device.</p>
+            </section>
+
+            <!-- STEP 1: ANXIETY LEVEL INPUT -->
+            <section id="step-anxiety" class="step">
+                <h1>How are you feeling?</h1>
+                <p>Move the slider to indicate your current level of anxiety. This helps us contextualize the data you will provide in the next step.</p>
+                <label for="anxietySlider" id="sliderLabel">Current Level: 50</label>
+                <input type="range" id="anxietySlider" min="0" max="100" value="50" aria-valuemin="0" aria-valuemax="100">
+                <div class="button-group">
+                     <button id="backToWelcomeBtn" class="btn btn-secondary" type="button">Back</button>
+                    <button id="toTypingBtn" class="btn" type="button">Continue</button>
+                </div>
+            </section>
+
+            <!-- STEP 2: TYPING TASK -->
+            <section id="step-typing" class="step">
+                <h1>Now, please type below.</h1>
+                <p>Write freely about anything that comes to mind. The content is not important, only the natural rhythm of your keystrokes.</p>
+                <div id="textareaWrapper" class="textarea-wrapper">
+                    <textarea id="typingArea" placeholder="For example, describe your day, what you see around you, or your thoughts on a recent movie..."></textarea>
+                    <div id="charCounter" aria-live="polite"></div>
+                </div>
+                <div class="button-group">
+                    <button id="backToAnxietyBtn" class="btn btn-secondary" type="button">Back</button>
+                    <button id="submitBtn" class="btn" disabled>Finish & Submit</button>
+                </div>
+            </section>
+
+            <!-- STEP 3: COMPLETION & DATA DISPLAY -->
+            <section id="step-complete" class="step">
+                <h1>Thank You!</h1>
+                <p>Your session has been recorded. Your anonymous contribution is valuable for training our model.</p>
+                <details>
+                    <summary>
+                        View recorded Data
+                        <svg class="chevron" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </summary>
+                    <div id="output"></div>
+                </details>
+                <div class="data-summary">
+                    <p><strong>What we captured:</strong> A self-reported anxiety score and the timestamps of your key presses.</p>
+                </div>
+                <div class="button-group">
+                    <button id="startOverBtn" class="btn btn-success" type="button">Start New Session</button>
+                </div>
+            </section>
+        </div>
+    </form>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Configuration Constants ---
+            const MIN_CHARS_TO_ENABLE_SUBMIT = 25;
+            const TOTAL_STEPS = 2; 
+
+            // --- Element References ---
+            const progressIndicator = document.querySelector('.progress-indicator');
+            const progressBarInner = document.getElementById('progressBarInner');
+            const progressText = document.getElementById('progress-text');
+            const steps = {
+                welcome: document.getElementById('step-welcome'),
+                mobileBlock: document.getElementById('step-mobile-block'), // New step for mobile users
+                anxiety: document.getElementById('step-anxiety'),
+                typing: document.getElementById('step-typing'),
+                complete: document.getElementById('step-complete')
+            };
+            const anxietySlider = document.getElementById('anxietySlider');
+            const sliderLabel = document.getElementById('sliderLabel');
+            const typingArea = document.getElementById('typingArea');
+            const textareaWrapper = document.getElementById('textareaWrapper');
+            const charCounter = document.getElementById('charCounter');
+            const outputDiv = document.getElementById('output');
+            
+            // Button elements
+            const toAnxietyBtn = document.getElementById('toAnxietyBtn');
+            const backToWelcomeBtn = document.getElementById('backToWelcomeBtn');
+            const toTypingBtn = document.getElementById('toTypingBtn');
+            const backToAnxietyBtn = document.getElementById('backToAnxietyBtn');
+            const submitBtn = document.getElementById('submitBtn');
+            const startOverBtn = document.getElementById('startOverBtn');
+
+            // --- State Variables ---
+            let keyEvents = [];
+
+            // --- Core Functions ---
+
+            const updateStep = (currentStepKey) => {
+                Object.values(steps).forEach(stepEl => stepEl.classList.remove('visible'));
+                steps[currentStepKey].classList.add('visible');
+
+                // Hide progress indicator on welcome and mobile-block screens
+                progressIndicator.style.visibility = (currentStepKey === 'welcome' || currentStepKey === 'mobileBlock') ? 'hidden' : 'visible';
+
+                const progressMap = { welcome: 0, anxiety: 1, typing: 2, complete: 3 };
+                const currentProgress = progressMap[currentStepKey];
+                
+                if (currentStepKey === 'complete') {
+                    progressBarInner.style.width = '100%';
+                    progressBarInner.style.backgroundColor = 'var(--success-color)';
+                    progressText.textContent = "Complete!";
+                } else if (currentStepKey === 'welcome' || currentStepKey === 'mobileBlock') {
+                    progressBarInner.style.width = '0%';
+                    progressBarInner.style.backgroundColor = 'var(--accent-color)';
+                    progressText.textContent = `Step 0 of ${TOTAL_STEPS}`;
+                } else {
+                    const progressPercentage = (currentProgress / TOTAL_STEPS) * 100;
+                    progressBarInner.style.width = `${progressPercentage}%`;
+                    progressBarInner.style.backgroundColor = 'var(--accent-color)';
+                    progressText.textContent = `Step ${currentProgress} of ${TOTAL_STEPS}`;
+                }
+            };
+
+            const resetState = () => {
+                keyEvents = [];
+                anxietySlider.value = 50;
+                updateSliderAppearance(50);
+                sliderLabel.textContent = `Current Level: 50`;
+                anxietySlider.setAttribute('aria-valuenow', 50);
+                typingArea.value = '';
+                typingArea.disabled = false;
+                submitBtn.disabled = true;
+                submitBtn.textContent = "Finish & Submit";
+                charCounter.textContent = '';
+                textareaWrapper.classList.remove('is-valid');
+                outputDiv.innerHTML = '';
+                
+                const detailsElement = document.querySelector('#step-complete details');
+                if (detailsElement && detailsElement.hasAttribute('open')) {
+                    detailsElement.removeAttribute('open');
+                }
+                updateStep('welcome');
+            };
+
+            const interpolateColor = (color1, color2, factor) => {
+                const result = color1.slice();
+                for (let i = 0; i < 3; i++) {
+                    result[i] = Math.round(result[i] + factor * (color2[i] - result[i]));
+                }
+                return `rgb(${result.join(', ')})`;
+            };
+
+            const updateSliderAppearance = (value) => {
+                const percentage = value / 100;
+                const colorLow = [58, 134, 255];   // Blue
+                const colorMid = [255, 193, 7];    // Yellow
+                const colorHigh = [220, 53, 69];   // Red
+
+                let thumbColor;
+                if (percentage < 0.5) {
+                    thumbColor = interpolateColor(colorLow, colorMid, percentage * 2);
+                } else {
+                    thumbColor = interpolateColor(colorMid, colorHigh, (percentage - 0.5) * 2);
+                }
+                
+                anxietySlider.style.setProperty('--thumb-color', thumbColor);
+                anxietySlider.style.background = `linear-gradient(90deg, ${thumbColor} ${percentage * 100}%, #e9ecef ${percentage * 100}%)`;
+            };
+
+            const displayDataWithLineNumbers = (element, data) => {
+                element.innerHTML = '';
+                const rawJson = JSON.stringify(data, null, 2);
+                const lines = rawJson.split('\n');
+
+                const htmlContent = lines.map((lineContent, index) => {
+                    const safeContent = lineContent.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">");
+                    return (
+                        `<div class="line">` +
+                          `<span class="line-number">${index + 1}</span>` +
+                          `<span class="line-content">${safeContent || ' '}</span>` +
+                        `</div>`
+                    );
+                }).join('');
+                
+                element.innerHTML = htmlContent;
+            };
+            
+            // --- Event Listeners ---
+            toAnxietyBtn.addEventListener('click', () => {
+                // Check if the user is on a mobile device based on screen width
+                if (window.innerWidth <= 768) {
+                    updateStep('mobileBlock'); // Show the mobile block message
+                } else {
+                    updateStep('anxiety'); // Proceed for desktop users
+                }
+            });
+
+            backToWelcomeBtn.addEventListener('click', () => updateStep('welcome'));
+            toTypingBtn.addEventListener('click', () => {
+                updateStep('typing');
+                typingArea.focus();
+            });
+            backToAnxietyBtn.addEventListener('click', () => updateStep('anxiety'));
+
+            anxietySlider.addEventListener('input', (e) => {
+                const value = e.target.value;
+                sliderLabel.textContent = `Current Level: ${value}`;
+                anxietySlider.setAttribute('aria-valuenow', value);
+                updateSliderAppearance(value);
+            });
+
+            const recordKeyEvent = (event) => {
+                if (event.key.length === 1 || ['Backspace', 'Delete', 'Enter', 'Shift', 'Tab', ' '].includes(event.key)) {
+                    keyEvents.push({ type: event.type, key: event.key, code: event.code, timestamp: event.timeStamp });
+                }
+            };
+
+            typingArea.addEventListener('keydown', recordKeyEvent);
+            typingArea.addEventListener('keyup', recordKeyEvent);
+            typingArea.addEventListener('input', () => {
+                const charCount = typingArea.value.length;
+                const enabled = charCount >= MIN_CHARS_TO_ENABLE_SUBMIT;
+                submitBtn.disabled = !enabled;
+                textareaWrapper.classList.toggle('is-valid', enabled);
+                charCounter.textContent = `${charCount} / ${MIN_CHARS_TO_ENABLE_SUBMIT} characters`;
+            });
+
+            submitBtn.addEventListener('click', () => {
+                typingArea.disabled = true;
+                submitBtn.disabled = true;
+                submitBtn.textContent = "Submitting...";
+
+                const sessionData = {
+                    metadata: { submissionTimestamp: new Date().toISOString() },
+                    selfReport: { anxietyScore: parseInt(anxietySlider.value, 10) },
+                    behavioralData: { rawTextLength: typingArea.value.length, keyEvents: keyEvents }
+                };
+                
+                displayDataWithLineNumbers(outputDiv, sessionData);
+
+                const form = document.querySelector('form[name="data-collection-form"]');
+                const hiddenInput = form.querySelector('input[name="sessionData"]');
+                
+                hiddenInput.value = JSON.stringify(sessionData, null, 2);
+
+                const formData = new FormData(form);
+
+                fetch('/', {
+                    method: 'POST',
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: new URLSearchParams(formData).toString()
+                })
+                .then(() => {
+                    console.log('Form submission successful!');
+                    updateStep('complete');
+                })
+                .catch((error) => {
+                    console.error('Form submission error:', error);
+                    alert('There was an error submitting your data. Please try again.');
+                    typingArea.disabled = false;
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = "Finish & Submit";
+                });
+            });
+            
+            startOverBtn.addEventListener('click', resetState);
+
+            // --- Initial Setup ---
+            resetState();
+            updateSliderAppearance(anxietySlider.value);
+        });
+    </script>
+
+</body>
+</html>

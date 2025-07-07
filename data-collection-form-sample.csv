@@ -1,0 +1,350 @@
+"sessionData","ip","user_agent","referrer","created_at"
+"{
+  ""metadata"": {
+    ""submissionTimestamp"": ""2025-07-06T03:50:14.238Z""
+  },
+  ""selfReport"": {
+    ""anxietyScore"": 30
+  },
+  ""behavioralData"": {
+    ""rawTextLength"": 28,
+    ""keyEvents"": [
+      {
+        ""type"": ""keydown"",
+        ""key"": ""h"",
+        ""code"": ""KeyH"",
+        ""timestamp"": 13490.699999988079
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""e"",
+        ""code"": ""KeyE"",
+        ""timestamp"": 13609.400000035763
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""h"",
+        ""code"": ""KeyH"",
+        ""timestamp"": 13648.5
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""r"",
+        ""code"": ""KeyR"",
+        ""timestamp"": 13730.400000035763
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""e"",
+        ""code"": ""KeyE"",
+        ""timestamp"": 13780.5
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""e"",
+        ""code"": ""KeyE"",
+        ""timestamp"": 13849
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""r"",
+        ""code"": ""KeyR"",
+        ""timestamp"": 13870.100000023842
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""e"",
+        ""code"": ""KeyE"",
+        ""timestamp"": 14069.600000023842
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": "" "",
+        ""code"": ""Space"",
+        ""timestamp"": 14071.199999988079
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": "" "",
+        ""code"": ""Space"",
+        ""timestamp"": 14259.600000023842
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""i"",
+        ""code"": ""KeyI"",
+        ""timestamp"": 14382.5
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""i"",
+        ""code"": ""KeyI"",
+        ""timestamp"": 14526.199999988079
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""s"",
+        ""code"": ""KeyS"",
+        ""timestamp"": 14529.300000011921
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": "" "",
+        ""code"": ""Space"",
+        ""timestamp"": 14646.100000023842
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""s"",
+        ""code"": ""KeyS"",
+        ""timestamp"": 14665.400000035763
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": "" "",
+        ""code"": ""Space"",
+        ""timestamp"": 14823.600000023842
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""n"",
+        ""code"": ""KeyN"",
+        ""timestamp"": 14921
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""o"",
+        ""code"": ""KeyO"",
+        ""timestamp"": 14978.400000035763
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""n"",
+        ""code"": ""KeyN"",
+        ""timestamp"": 15071.699999988079
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""t"",
+        ""code"": ""KeyT"",
+        ""timestamp"": 15129.699999988079
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""o"",
+        ""code"": ""KeyO"",
+        ""timestamp"": 15155.600000023842
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""t"",
+        ""code"": ""KeyT"",
+        ""timestamp"": 15244
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""h"",
+        ""code"": ""KeyH"",
+        ""timestamp"": 15860.199999988079
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""h"",
+        ""code"": ""KeyH"",
+        ""timestamp"": 15953.900000035763
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""i"",
+        ""code"": ""KeyI"",
+        ""timestamp"": 16232.699999988079
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""n"",
+        ""code"": ""KeyN"",
+        ""timestamp"": 16251.900000035763
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""i"",
+        ""code"": ""KeyI"",
+        ""timestamp"": 16357.699999988079
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""n"",
+        ""code"": ""KeyN"",
+        ""timestamp"": 16434
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""g"",
+        ""code"": ""KeyG"",
+        ""timestamp"": 16851.30000001192
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""g"",
+        ""code"": ""KeyG"",
+        ""timestamp"": 16947
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": "" "",
+        ""code"": ""Space"",
+        ""timestamp"": 16950.19999998808
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": "" "",
+        ""code"": ""Space"",
+        ""timestamp"": 17194.900000035763
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""s"",
+        ""code"": ""KeyS"",
+        ""timestamp"": 17257.19999998808
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""s"",
+        ""code"": ""KeyS"",
+        ""timestamp"": 17375.400000035763
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""p"",
+        ""code"": ""KeyP"",
+        ""timestamp"": 17380.900000035763
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""e"",
+        ""code"": ""KeyE"",
+        ""timestamp"": 17494.5
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""p"",
+        ""code"": ""KeyP"",
+        ""timestamp"": 17529.100000023842
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""e"",
+        ""code"": ""KeyE"",
+        ""timestamp"": 17604.69999998808
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""c"",
+        ""code"": ""KeyC"",
+        ""timestamp"": 17763
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""i"",
+        ""code"": ""KeyI"",
+        ""timestamp"": 17923.5
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""c"",
+        ""code"": ""KeyC"",
+        ""timestamp"": 17933
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""a"",
+        ""code"": ""KeyA"",
+        ""timestamp"": 18028.19999998808
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""i"",
+        ""code"": ""KeyI"",
+        ""timestamp"": 18030.5
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""l"",
+        ""code"": ""KeyL"",
+        ""timestamp"": 18128.600000023842
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""a"",
+        ""code"": ""KeyA"",
+        ""timestamp"": 18143.69999998808
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": "" "",
+        ""code"": ""Space"",
+        ""timestamp"": 18211.5
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""l"",
+        ""code"": ""KeyL"",
+        ""timestamp"": 18288.100000023842
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": "" "",
+        ""code"": ""Space"",
+        ""timestamp"": 18431.19999998808
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""o"",
+        ""code"": ""KeyO"",
+        ""timestamp"": 18511.900000035763
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""k"",
+        ""code"": ""KeyK"",
+        ""timestamp"": 18571.400000035763
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""o"",
+        ""code"": ""KeyO"",
+        ""timestamp"": 18698
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""k"",
+        ""code"": ""KeyK"",
+        ""timestamp"": 18811.100000023842
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": ""."",
+        ""code"": ""Period"",
+        ""timestamp"": 19305.69999998808
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": ""."",
+        ""code"": ""Period"",
+        ""timestamp"": 19433.19999998808
+      },
+      {
+        ""type"": ""keydown"",
+        ""key"": "" "",
+        ""code"": ""Space"",
+        ""timestamp"": 20790.900000035763
+      },
+      {
+        ""type"": ""keyup"",
+        ""key"": "" "",
+        ""code"": ""Space"",
+        ""timestamp"": 20919
+      }
+    ]
+  }
+}","2401:4900:1f31:79d1:c86e:57a8:3872:eb38","Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36","https://data54354.netlify.app/","2025-07-06T03:50:22.796Z"
