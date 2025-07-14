@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Typing Insight</title>
+    <!-- ONNX Runtime for Web -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+        :root {
+            --color-bg: #121212;
+            --color-surface: rgba(30, 30, 30, 0.6);
+            --color-primary: #00bfa5;
+            --color-secondary: #aa77ff;
+            --color-text: #e0e0e0;
+            --color-text-muted: #a0a0a0;
+            --color-border: rgba(255, 255, 255, 0.1);
+            --color-shadow: rgba(0, 0, 0, 0.5);
+            --color-glow-primary: rgba(0, 191, 165, 0.3);
+            --color-glow-secondary: rgba(170, 119, 255, 0.3);
+    
+            --font-family: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+            
+            --low-anxiety-color: #00bfa5;
+            --mid-anxiety-color: #ffab00;
+            --high-anxiety-color: #ff5252;
+            --idle-color: #555;
+    
+            --ease-out-cubic: cubic-bezier(0.215, 0.610, 0.355, 1.000);
+            --ease-in-out-quad: cubic-bezier(0.455, 0.030, 0.515, 0.955);
+        }
+    
+        /* --- Animations & Keyframes --- */
+        @keyframes breathing-background {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+    
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes subtle-glow {
+            0% { box-shadow: 0 0 20px var(--color-glow-secondary); }
+            50% { box-shadow: 0 0 25px var(--color-glow-secondary); }
+            100% { box-shadow: 0 0 20px var(--color-glow-secondary); }
+        }
+    
+        /* --- General & Body Styles --- */
+        body {
+            font-family: var(--font-family);
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+            box-sizing: border-box;
+            
+            background: linear-gradient(45deg, var(--color-bg), #2c2c2c, #121212);
+            background-size: 400% 400%;
+            animation: breathing-background 30s ease infinite;
+            transition: background 1.5s var(--ease-in-out-quad);
+        }
+    
+        /* --- Layout & Container --- */
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+            width: 100%;
+            max-width: 1200px;
+            animation: fade-in 1s var(--ease-out-cubic) forwards;
+        }
+    
+        /* --- Panels & Cards --- */
+        .input-panel, .output-panel {
+            flex: 1;
+            min-width: 320px;
+            background: var(--color-surface);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 15px 35px var(--color-shadow);
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--color-border);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            transition: transform 0.5s var(--ease-out-cubic), box-shadow 0.5s var(--ease-out-cubic);
+            position: relative;
+            overflow: hidden;
+        }
+        .input-panel::before, .output-panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border-radius: 20px;
+            border: 1px solid transparent;
+            background: linear-gradient(45deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05)) border-box;
+            -webkit-mask: 
+                linear-gradient(#fff 0 0) padding-box, 
+                linear-gradient(#fff 0 0);
+            mask:
+                linear-gradient(#fff 0 0) padding-box,
+                linear-gradient(#fff 0 0);
+            -webkit-mask-composite: destination-out;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+    
+        /* --- Typography & Text Elements --- */
+        .input-panel h1 {
+            margin-top: 0;
+            font-size: 2.25rem;
+            font-weight: 300;
+            color: var(--color-text);
+            line-height: 1.2;
+        }
+        .input-panel h1 span {
+            font-weight: 700;
+            color: var(--color-primary);
+            text-shadow: 0 0 15px var(--color-glow-primary);
+        }
+        .input-panel p {
+            color: var(--color-text-muted);
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+    
+        /* --- Forms & Controls (Textarea, Button, Select) --- */
+        textarea {
+            width: 100%;
+            flex-grow: 1;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--color-border);
+            border-radius: 12px;
+            color: var(--color-text);
+            font-size: 1rem;
+            font-family: var(--font-family);
+            padding: 1rem;
+            box-sizing: border-box;
+            resize: none;
+            transition: border-color 0.3s var(--ease-out-cubic), box-shadow 0.3s var(--ease-out-cubic);
+        }
+        textarea:focus {
+            outline: none;
+            border-color: var(--color-secondary);
+            animation: subtle-glow 2s ease-in-out infinite;
+        }
+        textarea::placeholder {
+            color: var(--color-text-muted);
+            opacity: 0.7;
+        }
+    
+        .controls {
+            margin-top: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .model-selector-container {
+            flex-grow: 1;
+            position: relative;
+        }
+
+        #model-selector {
+            width: 100%;
+            background: rgba(0,0,0,0.3);
+            color: var(--color-text-muted);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 0.6rem 1rem;
+            font-family: var(--font-family);
+            font-size: 0.9rem;
+            cursor: pointer;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a0a0a0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.7rem center;
+            background-size: 1em;
+            transition: all 0.3s var(--ease-out-cubic);
+        }
+        #model-selector:hover {
+             border-color: var(--color-secondary);
+        }
+        #model-selector:focus {
+            outline: none;
+            border-color: var(--color-secondary);
+            box-shadow: 0 0 10px var(--color-glow-secondary);
+        }
+    
+        #reset-button {
+            background: transparent;
+            border: 1px solid var(--color-text-muted);
+            color: var(--color-text-muted);
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s var(--ease-out-cubic);
+            transform: scale(1);
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        #reset-button:hover {
+            background: var(--color-secondary);
+            color: #111;
+            border-color: var(--color-secondary);
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px var(--color-glow-secondary);
+        }
+        #reset-button:active {
+            transform: scale(0.98);
+            transition-duration: 0.1s;
+        }
+        #reset-button svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+        }
+    
+        /* --- Output Panel: Status, Gauge & Metrics --- */
+        .output-panel {
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        #status {
+            font-size: 1.1rem;
+            color: var(--color-text-muted);
+            margin-bottom: 2rem;
+            height: 2rem;
+            transition: color 0.5s var(--ease-in-out-quad);
+            font-weight: 500;
+        }
+        .loading {
+            animation: pulse 1.5s var(--ease-in-out-quad) infinite;
+        }
+    
+        .gauge-container {
+            position: relative;
+            width: 250px;
+            height: 250px;
+        }
+        .gauge-svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+            filter: drop-shadow(0 5px 10px rgba(0,0,0,0.3));
+        }
+        .gauge-bg, .gauge-fg {
+            fill: none;
+            stroke-width: 20;
+            stroke-linecap: round;
+        }
+        .gauge-bg {
+            stroke: rgba(0,0,0,0.4);
+        }
+        .gauge-fg {
+            stroke: var(--idle-color);
+            transition: stroke-dashoffset 1s var(--ease-in-out-quad), stroke 1s var(--ease-in-out-quad);
+        }
+        .gauge-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: color 1s var(--ease-in-out-quad);
+            width: 100%;
+        }
+        .gauge-value {
+            font-size: 4rem;
+            font-weight: 700;
+            color: var(--color-text);
+            text-shadow: 0 0 10px rgba(0,0,0,0.5);
+            display: inline-block;
+            min-width: 3ch;
+        }
+        .gauge-label {
+            font-size: 1rem;
+            color: var(--color-text-muted);
+            margin-top: -10px;
+            font-weight: 500;
+        }
+        .gauge-value.idle::after {
+            content: 'Idle';
+            font-size: 2.5rem;
+            font-weight: 400;
+            color: var(--color-text-muted);
+        }
+    
+        .metrics-container {
+            margin-top: 2rem;
+            width: 100%;
+        }
+        .metrics-container h3 {
+            font-weight: 500;
+            color: var(--color-text-muted);
+            border-bottom: 1px solid var(--color-border);
+            padding-bottom: 0.75rem;
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+            text-align: left;
+        }
+        .metric {
+            background: rgba(0,0,0,0.2);
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            transition: transform 0.3s var(--ease-out-cubic), box-shadow 0.3s var(--ease-out-cubic), border-color 0.3s var(--ease-out-cubic);
+            position: relative;
+        }
+        .metric:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            border-color: var(--color-border);
+        }
+        .metric-label {
+            font-size: 0.85rem;
+            color: var(--color-text-muted);
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .metric-label svg {
+            width: 14px;
+            height: 14px;
+            stroke: var(--color-text-muted);
+            flex-shrink: 0;
+        }
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--color-secondary);
+        }
+
+        /* --- Custom Tooltip --- */
+        #custom-tooltip {
+            position: fixed;
+            background: #222;
+            color: var(--color-text);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            pointer-events: none;
+            opacity: 0;
+            transform: translate(-50%, calc(-100% - 15px)) scale(0.9);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            z-index: 1000;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            border: 1px solid var(--color-border);
+            max-width: 250px;
+        }
+        #custom-tooltip.visible {
+            opacity: 1;
+            transform: translate(-50%, calc(-100% - 15px)) scale(1);
+        }
+    
+        /* --- Responsive Design --- */
+        @media (max-width: 992px) {
+            body { align-items: flex-start; padding: 1.5rem; }
+            .container { flex-direction: column; gap: 1.5rem; }
+            .input-panel, .output-panel { min-width: 0; }
+        }
+    
+        @media (max-width: 600px) {
+            body { padding: 1rem; }
+            .input-panel h1 { font-size: 1.8rem; }
+            .input-panel, .output-panel { padding: 1.5rem; }
+            .gauge-container { width: 220px; height: 220px; }
+            .gauge-value { font-size: 3.5rem; }
+        }
+    </style>
+</head>
+<body>
+    <div id="custom-tooltip"></div>
+
+    <div class="container">
+        <div class="input-panel">
+            <h1>Real-time <span>Typing Insight</span></h1>
+            <p>Your keystroke dynamics are analyzed locally in your browser to provide insight. No data ever leaves your machine.</p>
+            <textarea id="text-input" placeholder="Start typing here to begin the analysis..."></textarea>
+            <div class="controls">
+                <div class="model-selector-container">
+                    <select id="model-selector" aria-label="Select analysis model"></select>
+                </div>
+                <button id="reset-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                    Reset
+                </button>
+            </div>
+        </div>
+        <div class="output-panel">
+            <div id="status" role="status" aria-live="polite"></div>
+            <div class="gauge-container">
+                <svg class="gauge-svg" viewBox="0 0 120 120">
+                    <circle class="gauge-bg" cx="60" cy="60" r="50"></circle>
+                    <circle id="gauge-fg" class="gauge-fg" cx="60" cy="60" r="50"></circle>
+                </svg>
+                <div class="gauge-text">
+                    <span id="gauge-value" class="gauge-value" aria-live="polite"></span>
+                    <div id="gauge-label" class="gauge-label">Anxiety Score</div>
+                </div>
+            </div>
+            <div class="metrics-container">
+                <h3>Live Typing DNA</h3>
+                <div class="metrics-grid">
+                    <div class="metric" data-tooltip="Words Per Minute: Your overall typing speed.">
+                        <div class="metric-label">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.5 14.5L14.5 18.5M14.5 14.5L18.5 18.5M7 11l5 5L17 7M10 21v-2a4 4 0 00-4-4H4a4 4 0 00-4 4v2"/></svg>
+                            Typing Speed (WPM)
+                        </div>
+                        <div id="metric-wpm" class="metric-value">–</div>
+                    </div>
+                    <div class="metric" data-tooltip="Percentage of key presses that are corrections (e.g., Backspace).">
+                        <div class="metric-label">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+                            Error Rate (%)
+                        </div>
+                        <div id="metric-error" class="metric-value">–</div>
+                    </div>
+                    <div class="metric" data-tooltip="Dwell Time: The average time (in ms) you hold down a key before releasing it.">
+                        <div class="metric-label">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4m-4.2 1.8L9.2 9.2m-4 4H2m1.8 4.2L9.2 14.8m4 4v4m4.2-1.8L14.8 14.8m4-4h4m-1.8-4.2L14.8 9.2"/><circle cx="12" cy="12" r="2"/></svg>
+                            Avg. Dwell Time (ms)
+                        </div>
+                        <div id="metric-dwell" class="metric-value">–</div>
+                    </div>
+                    <div class="metric" data-tooltip="The number of significant pauses in your typing rhythm.">
+                        <div class="metric-label">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="10"/></svg>
+                            Pause Count
+                        </div>
+                        <div id="metric-pause" class="metric-value">–</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+'use strict';
+
+// --- 0. CONFIGURATION & CONSTANTS ---
+const ERROR_KEYS = new Set(['Backspace', 'Delete']);
+const SPECIAL_KEYS = new Set(['Shift', 'CapsLock', 'Enter', 'Tab']);
+const MODIFIER_KEYS = new Set(['Control', 'Alt', 'Meta']);
+const PAUSE_THRESHOLD_MS = 2000;
+const ANALYSIS_INTERVAL_MS = 2500;
+const MIN_EVENTS_FOR_ANALYSIS = 30;
+const INACTIVITY_TIMEOUT_MS = 5000;
+const ANXIETY_SCORE_MAX = 100.0; // The maximum value of your model's output scale
+
+// --- IMPLEMENTATION: Added constants for sliding window and smoothing ---
+const SLIDING_WINDOW_MS = 15000; // Analyze the last 15 seconds of typing.
+const SMOOTHING_FACTOR = 0.2;    // EMA smoothing factor. Lower = smoother, higher = more responsive.
+
+// --- 1. LOGGER ---
+const Logger = {
+    info(message, data = '') {
+        console.log(`[INFO] ${new Date().toISOString()}: ${message}`, data);
+    },
+    warn(message) {
+        console.warn(`[WARN] ${new Date().toISOString()}: ${message}`);
+    },
+    error(message, errorObj = '') {
+        console.error(`[ERROR] ${new Date().toISOString()}: ${message}`, errorObj);
+    }
+};
+
+// --- 2. STATE MANAGEMENT ---
+const State = {
+    keyEvents: [],
+    isAnalyzing: false,
+    isTabActive: true,
+    session: null,
+    lastKeyEventTime: performance.now(),
+    inactivityTimer: null,
+    // --- IMPLEMENTATION: Added state for the smoothed score ---
+    smoothedAnxietyScore: null,
+    currentModelConfig: null,
+    availableModels: [] // Will be populated from models.json
+};
+
+// --- 3. UI MANAGER ---
+const UIManager = {
+    elements: {},
+    gaugeCircumference: 0,
+
+    init() {
+        this.elements = {
+            textInput: document.getElementById('text-input'),
+            status: document.getElementById('status'),
+            gaugeFg: document.getElementById('gauge-fg'),
+            gaugeValue: document.getElementById('gauge-value'),
+            metricWpm: document.getElementById('metric-wpm'),
+            metricError: document.getElementById('metric-error'),
+            metricDwell: document.getElementById('metric-dwell'),
+            metricPause: document.getElementById('metric-pause'),
+            resetButton: document.getElementById('reset-button'),
+            modelSelector: document.getElementById('model-selector'),
+            tooltip: document.getElementById('custom-tooltip')
+        };
+        const radius = this.elements.gaugeFg.r.baseVal.value;
+        this.gaugeCircumference = 2 * Math.PI * radius;
+        this.elements.gaugeFg.style.strokeDasharray = this.gaugeCircumference;
+        this.resetUI();
+        this.setupTooltips();
+        Logger.info("UI Manager initialized.");
+    },
+
+    resetUI() {
+        this.elements.textInput.value = '';
+        this.updateGauge(0, true);
+        this.updateLiveMetrics({ wpm: '–', errorRate: '–', avgDwell: '–', pauseCount: '–' });
+        this.setStatus('Waiting for input...', 'var(--color-text-muted)');
+        Logger.info("UI has been reset.");
+    },
+
+    updateGauge(value, isIdle = false) {
+        // This function now correctly receives a value between 0.0 and 1.0
+        const percentage = isIdle ? 0 : Math.max(0, Math.min(1, value));
+        const offset = this.gaugeCircumference * (1 - percentage);
+        this.elements.gaugeFg.style.strokeDashoffset = offset;
+        
+        let color = 'var(--idle-color)';
+        if (!isIdle) {
+            if (percentage < 0.4) color = 'var(--low-anxiety-color)';
+            else if (percentage < 0.7) color = 'var(--mid-anxiety-color)';
+            else color = 'var(--high-anxiety-color)';
+        }
+        this.elements.gaugeFg.style.stroke = color;
+        
+        if (isIdle) {
+            this.elements.gaugeValue.textContent = '';
+            this.elements.gaugeValue.classList.add('idle');
+        } else {
+            this.elements.gaugeValue.classList.remove('idle');
+            this.elements.gaugeValue.textContent = Math.round(percentage * 100);
+        }
+    },
+
+    updateLiveMetrics(metrics) {
+        this.elements.metricWpm.textContent = metrics.wpm;
+        this.elements.metricError.textContent = metrics.errorRate;
+        this.elements.metricDwell.textContent = metrics.avgDwell;
+        this.elements.metricPause.textContent = metrics.pauseCount;
+    },
+
+    setStatus(message, color = 'var(--color-text-muted)', isLoading = false) {
+        this.elements.status.textContent = message;
+        this.elements.status.style.color = color;
+        this.elements.status.classList.toggle('loading', isLoading);
+    },
+
+    populateModelSelector() {
+        this.elements.modelSelector.innerHTML = '';
+        State.availableModels.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.id;
+            option.textContent = model.displayName;
+            option.title = model.description;
+            this.elements.modelSelector.appendChild(option);
+        });
+    },
+
+    setupTooltips() {
+        const metrics = document.querySelectorAll('.metric');
+        metrics.forEach(metric => {
+            metric.addEventListener('mouseenter', (e) => {
+                this.elements.tooltip.textContent = e.currentTarget.dataset.tooltip;
+                this.elements.tooltip.style.left = `${e.clientX}px`;
+                this.elements.tooltip.style.top = `${e.clientY}px`;
+                this.elements.tooltip.classList.add('visible');
+            });
+            metric.addEventListener('mouseleave', () => {
+                this.elements.tooltip.classList.remove('visible');
+            });
+            metric.addEventListener('mousemove', (e) => {
+                this.elements.tooltip.style.left = `${e.clientX}px`;
+                this.elements.tooltip.style.top = `${e.clientY}px`;
+            });
+        });
+    }
+};
+
+// --- 4. FEATURE ENGINEERING ---
+const FeatureEngine = {
+    getStats(data) {
+        const count = data.length;
+        if (count === 0) return { mean: 0, std: 0, median: 0, count: 0 };
+        const sum = data.reduce((a, b) => a + b, 0);
+        const mean = sum / count;
+        const std = count > 1 ? Math.sqrt(data.map(x => Math.pow(x - mean, 2)).reduce((a, b) => a + b) / (count - 1)) : 0;
+        const sorted = [...data].sort((a, b) => a - b);
+        const mid = Math.floor(count / 2);
+        const median = count % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+        return { mean, std, median, count };
+    },
+
+    calculate(keyEvents, featureNames) {
+        if (keyEvents.length < MIN_EVENTS_FOR_ANALYSIS) return null;
+        const keyPresses = this.processEvents(keyEvents);
+        if (keyPresses.length < 15) return null;
+        const totalTimeSec = (keyEvents[keyEvents.length - 1].timestamp - keyEvents[0].timestamp) / 1000;
+        if (totalTimeSec < 2) return null;
+
+        const dwellTimes = [], flightTimes = [], interKeyLatencies = [], digraphSpeeds = [], trigraphSpeeds = [];
+        let specialKeyCounts = { Shift: 0, CapsLock: 0, Enter: 0, Tab: 0 };
+
+        for (let i = 0; i < keyPresses.length; i++) {
+            const press = keyPresses[i];
+            dwellTimes.push(press.duration);
+            if (specialKeyCounts.hasOwnProperty(press.key)) specialKeyCounts[press.key]++;
+            if (i > 0) {
+                const prevPress = keyPresses[i-1];
+                const flightTime = press.downTime - prevPress.upTime;
+                if (flightTime >= 0) flightTimes.push(flightTime);
+                interKeyLatencies.push(press.downTime - prevPress.downTime);
+            }
+            if (i >= 1) digraphSpeeds.push(press.upTime - keyPresses[i-1].downTime);
+            if (i >= 2) trigraphSpeeds.push(press.upTime - keyPresses[i-2].downTime);
+        }
+
+        const featureMap = {};
+        const dwellStats = this.getStats(dwellTimes);
+        featureMap.dwell_time_mean = dwellStats.mean; featureMap.dwell_time_std = dwellStats.std; featureMap.dwell_time_median = dwellStats.median; featureMap.dwell_time_count = dwellStats.count;
+        const flightStats = this.getStats(flightTimes);
+        featureMap.flight_time_mean = flightStats.mean; featureMap.flight_time_std = flightStats.std; featureMap.flight_time_median = flightStats.median; featureMap.flight_time_count = flightStats.count;
+        const iklStats = this.getStats(interKeyLatencies);
+        featureMap.inter_key_latency_mean = iklStats.mean; featureMap.inter_key_latency_std = iklStats.std; featureMap.inter_key_latency_median = iklStats.median; featureMap.inter_key_latency_count = iklStats.count;
+        const digraphStats = this.getStats(digraphSpeeds);
+        featureMap.digraph_speed_mean = digraphStats.mean; featureMap.digraph_speed_std = digraphStats.std; featureMap.digraph_speed_median = digraphStats.median; featureMap.digraph_speed_count = digraphStats.count;
+        const trigraphStats = this.getStats(trigraphSpeeds);
+        featureMap.trigraph_speed_mean = trigraphStats.mean; featureMap.trigraph_speed_std = trigraphStats.std; featureMap.trigraph_speed_median = trigraphStats.median; featureMap.trigraph_speed_count = trigraphStats.count;
+        
+        const typedCharCount = keyPresses.filter(p => p.key.length === 1).length;
+        featureMap.typing_speed_wpm = (typedCharCount / 5) / (totalTimeSec / 60);
+        const errorKeyCount = keyEvents.filter(e => e.type === 'keydown' && ERROR_KEYS.has(e.key)).length;
+        featureMap.error_key_count = errorKeyCount;
+        featureMap.error_rate = (errorKeyCount / keyPresses.length) * 100;
+        const pauses = flightTimes.filter(ft => ft > PAUSE_THRESHOLD_MS);
+        featureMap.pause_count = pauses.length;
+        featureMap.total_pause_duration_ms = pauses.reduce((a, b) => a + b, 0);
+        featureMap.shift_count = specialKeyCounts.Shift; featureMap.capslock_count = specialKeyCounts.CapsLock; featureMap.enter_count = specialKeyCounts.Enter; featureMap.tab_count = specialKeyCounts.Tab;
+
+        const featureArray = [];
+        for (const name of featureNames) {
+            if (featureMap.hasOwnProperty(name)) {
+                const value = featureMap[name];
+                if (!isFinite(value)) {
+                    Logger.warn(`Feature '${name}' is not finite (${value}). Aborting analysis for this cycle.`);
+                    return null;
+                }
+                featureArray.push(value);
+            } else {
+                Logger.error(`FATAL: Model requires feature '${name}' but it was not calculated.`);
+                return null;
+            }
+        }
+        
+        const displayMetrics = {
+            wpm: featureMap.typing_speed_wpm.toFixed(0),
+            errorRate: featureMap.error_rate.toFixed(1),
+            avgDwell: featureMap.dwell_time_mean.toFixed(0),
+            pauseCount: featureMap.pause_count
+        };
+        
+        return { displayMetrics, featureArray };
+    },
+
+    processEvents(events) {
+        const presses = [];
+        const downEvents = new Map();
+        for (const event of events) {
+            if (MODIFIER_KEYS.has(event.key)) continue;
+            if (event.type === 'keydown' && !downEvents.has(event.key)) {
+                downEvents.set(event.key, event.timestamp);
+            } else if (event.type === 'keyup' && downEvents.has(event.key)) {
+                const downTime = downEvents.get(event.key);
+                const upTime = event.timestamp;
+                presses.push({ key: event.key, downTime, upTime, duration: upTime - downTime });
+                downEvents.delete(event.key);
+            }
+        }
+        return presses;
+    }
+};
+
+// --- 5. MAIN APPLICATION ORCHESTRATOR ---
+const App = {
+    async init() {
+        Logger.info("Application initializing...");
+        UIManager.init();
+        await this.fetchModels();
+        UIManager.elements.textInput.addEventListener('keydown', this.handleKeyEvent.bind(this));
+        UIManager.elements.textInput.addEventListener('keyup', this.handleKeyEvent.bind(this));
+        UIManager.elements.resetButton.addEventListener('click', this.resetAnalysis.bind(this));
+        UIManager.elements.modelSelector.addEventListener('change', (e) => this.loadModel(e.target.value));
+        document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+        if (State.availableModels.length > 0) {
+            await this.loadModel(State.availableModels[0].id);
+        } else {
+            UIManager.setStatus("No models found. Check models.json.", 'var(--high-anxiety-color)');
+        }
+        setInterval(this.runAnalysisLoop.bind(this), ANALYSIS_INTERVAL_MS);
+        Logger.info("Application initialized and analysis loop started.");
+    },
+
+    async fetchModels() {
+        try {
+            const modelsJsonContent = `
+            [
+              {
+                "id": "anxiety_stacking_tuned",
+                "displayName": "Anxiety Stacking Model (Tuned)",
+                "description": "A stacking ensemble model tuned for predicting anxiety levels from typing patterns.",
+                "modelPath": "anxiety_stacking_model_tuned.onnx",
+                "featureNames": ["dwell_time_mean", "dwell_time_std", "dwell_time_median", "dwell_time_count", "flight_time_mean", "flight_time_std", "flight_time_median", "flight_time_count", "inter_key_latency_mean", "inter_key_latency_std", "inter_key_latency_median", "inter_key_latency_count", "digraph_speed_mean", "digraph_speed_std", "digraph_speed_median", "digraph_speed_count", "trigraph_speed_mean", "trigraph_speed_std", "trigraph_speed_median", "trigraph_speed_count", "typing_speed_wpm", "error_rate", "error_key_count", "pause_count", "total_pause_duration_ms", "shift_count", "capslock_count", "enter_count", "tab_count"]
+              },
+              {
+                "id": "anxiety_base",
+                "displayName": "Anxiety Stacking Model (Base)",
+                "description": "A base stacking ensemble model for predicting anxiety levels.",
+                "modelPath": "anxiety_stacking_model.onnx",
+                "featureNames": ["dwell_time_mean", "dwell_time_std", "dwell_time_median", "dwell_time_count", "flight_time_mean", "flight_time_std", "flight_time_median", "flight_time_count", "inter_key_latency_mean", "inter_key_latency_std", "inter_key_latency_median", "inter_key_latency_count", "digraph_speed_mean", "digraph_speed_std", "digraph_speed_median", "digraph_speed_count", "trigraph_speed_mean", "trigraph_speed_std", "trigraph_speed_median", "trigraph_speed_count", "typing_speed_wpm", "error_rate", "error_key_count", "pause_count", "total_pause_duration_ms", "shift_count", "capslock_count", "enter_count", "tab_count"]
+              }
+            ]`;
+            State.availableModels = JSON.parse(modelsJsonContent);
+            Logger.info("Successfully loaded model configurations.", State.availableModels);
+            UIManager.populateModelSelector();
+        } catch (e) {
+            Logger.error("Failed to fetch or parse models.json", e);
+            UIManager.setStatus("Error loading model configs.", 'var(--high-anxiety-color)');
+        }
+    },
+
+    handleKeyEvent(e) {
+        if (e.ctrlKey || e.metaKey) return;
+        State.keyEvents.push({ key: e.key, type: e.type, timestamp: performance.now() });
+        State.lastKeyEventTime = performance.now();
+        if (State.inactivityTimer) clearTimeout(State.inactivityTimer);
+        State.inactivityTimer = setTimeout(() => {
+            Logger.warn("User inactive. Pausing gauge.");
+            UIManager.updateGauge(0, true);
+            UIManager.setStatus("Idle. Keep typing to resume analysis.", 'var(--color-text-muted)');
+        }, INACTIVITY_TIMEOUT_MS);
+    },
+
+    handleVisibilityChange() {
+        State.isTabActive = document.visibilityState === 'visible';
+        Logger.info(`Tab visibility changed. Active: ${State.isTabActive}`);
+        if (!State.isTabActive) {
+            UIManager.setStatus("Paused - Tab is not active", 'var(--color-text-muted)');
+        }
+    },
+
+    resetAnalysis() {
+        Logger.info("Resetting analysis state.");
+        State.keyEvents = [];
+        // --- IMPLEMENTATION: Reset the smoothed score on reset ---
+        State.smoothedAnxietyScore = null;
+        UIManager.resetUI();
+    },
+    
+    async loadModel(modelId) {
+        const modelConfig = State.availableModels.find(m => m.id === modelId);
+        if (!modelConfig) return;
+        
+        State.currentModelConfig = modelConfig;
+        UIManager.elements.modelSelector.value = modelId;
+        State.isAnalyzing = false;
+        UIManager.setStatus(`Loading ${modelConfig.displayName}...`, 'var(--color-text-muted)', true);
+        
+        try {
+            State.session = await ort.InferenceSession.create(modelConfig.modelPath);
+            Logger.info(`Successfully loaded ONNX model: ${modelConfig.modelPath}`);
+            this.resetAnalysis();
+            State.isAnalyzing = true;
+        } catch (e) {
+            Logger.error(`Failed to load ONNX model: ${modelConfig.modelPath}. Ensure the file exists in the same directory.`, e);
+            UIManager.setStatus(`Error: Could not load ${modelConfig.displayName}.`, 'var(--high-anxiety-color)');
+            State.session = null;
+        }
+    },
+
+    async runAnalysisLoop() {
+        if (!State.isAnalyzing || !State.isTabActive || !State.session || !State.currentModelConfig) return;
+
+        // --- IMPLEMENTATION: SLIDING WINDOW ---
+        // 1. Filter events to only include those within the sliding window.
+        const now = performance.now();
+        const windowStartTime = now - SLIDING_WINDOW_MS;
+        const recentEvents = State.keyEvents.filter(e => e.timestamp >= windowStartTime);
+        // Prune old events from the main array to prevent it from growing indefinitely
+        State.keyEvents = recentEvents;
+
+        // Pass only the recent, relevant events to the feature engine.
+        const featureData = FeatureEngine.calculate(recentEvents, State.currentModelConfig.featureNames);
+        
+        if (!featureData) {
+            if (State.keyEvents.length > 0) {
+                 UIManager.setStatus("Collecting more data...", 'var(--color-text-muted)');
+            }
+            return;
+        }
+
+        UIManager.updateLiveMetrics(featureData.displayMetrics);
+        UIManager.setStatus("Analyzing...", 'var(--mid-anxiety-color)', true);
+
+        const tensor = new ort.Tensor('float32', featureData.featureArray, [1, featureData.featureArray.length]);
+
+        try {
+            const inputName = State.session.inputNames[0];
+            const outputName = State.session.outputNames[0];
+            const results = await State.session.run({ [inputName]: tensor });
+
+            // Get the raw prediction and normalize it to a 0.0 - 1.0 scale
+            const rawPrediction = results[outputName].data[0];
+            const normalizedPrediction = Math.max(0, Math.min(1, rawPrediction / ANXIETY_SCORE_MAX));
+
+            // --- IMPLEMENTATION: EXPONENTIAL MOVING AVERAGE (EMA) ---
+            // 2. Apply smoothing to the normalized prediction for a stable UI.
+            if (State.smoothedAnxietyScore === null) {
+                // For the first prediction, set the smoothed score directly.
+                State.smoothedAnxietyScore = normalizedPrediction;
+            } else {
+                // Apply the EMA formula for subsequent predictions.
+                State.smoothedAnxietyScore = (normalizedPrediction * SMOOTHING_FACTOR) + (State.smoothedAnxietyScore * (1 - SMOOTHING_FACTOR));
+            }
+            // ---
+
+            Logger.info(`Inference complete. Raw: ${normalizedPrediction.toFixed(3)}, Smoothed: ${State.smoothedAnxietyScore.toFixed(3)}`);
+            
+            // 3. Update the UI with the SMOOTHED and stable value.
+            UIManager.updateGauge(State.smoothedAnxietyScore);
+            
+            UIManager.setStatus("Analysis Complete. Keep typing.", 'var(--color-primary)');
+
+        } catch (e) {
+            Logger.error('Inference failed.', e);
+            UIManager.setStatus("Inference Error.", 'var(--high-anxiety-color)');
+        }
+    }
+};
+
+// --- APPLICATION START ---
+document.addEventListener('DOMContentLoaded', async () => {
+    if (typeof ort === 'undefined') {
+        const status = document.getElementById('status');
+        status.textContent = "Error: ONNX Runtime could not be loaded. Please check your connection.";
+        status.style.color = 'var(--high-anxiety-color)';
+        Logger.error("ONNX Runtime (ort) is not defined. The application cannot run.");
+        return;
+    }
+    await App.init();
+});
+
+</script>
+</body>
+</html>
