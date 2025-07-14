@@ -555,7 +555,7 @@ const State = {
     currentModelConfig: null,
     availableModels: [],
     chart: null,
-    previousStats: null, // NEW: For calculating consistency metrics
+    previousStats: null, // For calculating consistency metrics
 };
 
 // --- 3. UI MANAGER ---
@@ -605,9 +605,12 @@ const UIManager = {
 
     activateGauge() {
         if (State.isIdle) {
-            Logger.info("Activating gauge from idle state.");
-            this.updateGauge(0, false);
-            State.isIdle = false;
+            Logger.info("Activating/Resuming analysis from idle state.");
+            if (State.smoothedAnxietyScore === null) {
+                this.updateGauge(0, false); 
+            } else {
+                State.isIdle = false;
+            }
         }
     },
 
@@ -946,16 +949,30 @@ const App = {
     },
     handleKeyEvent(e) {
         if (e.ctrlKey || e.metaKey) return;
+
+        // *** BUG FIX: Differentiate between a pause and inactivity. ***
+        // If the user is resuming typing after a period of inactivity (State.isIdle is true),
+        // we clear the old key events. This prevents the large time gap between the last
+        // keypress before inactivity and the first keypress on resume from being incorrectly
+        // calculated as a massive "pause" by the feature engine.
+        if (State.isIdle) {
+            Logger.info("Resuming from idle state. Clearing event buffer to prevent false pause calculation.");
+            State.keyEvents = [];
+            State.previousStats = null; // Reset consistency tracking as the context is broken.
+        }
         
         UIManager.activateGauge();
         
         State.keyEvents.push({ key: e.key, type: e.type, timestamp: performance.now() });
         State.lastKeyEventTime = performance.now();
+        
+        // Reset the inactivity timer on every key event.
         if (State.inactivityTimer) clearTimeout(State.inactivityTimer);
         State.inactivityTimer = setTimeout(() => {
-            Logger.warn("User inactive. Pausing gauge and providing feedback.");
-            UIManager.updateGauge(0, true);
-            UIManager.setStatus(''); // Clear top status
+            Logger.warn("User inactive. Pausing analysis. Current stats will be preserved.");
+            // Set the state to idle, which stops the analysis loop but preserves the UI.
+            State.isIdle = true; 
+            UIManager.setStatus(''); // Clear "Analyzing..." status
             UIManager.updateFeedback("Paused due to inactivity.", "Resume typing to continue the analysis.", "info");
         }, CONFIG.INACTIVITY_TIMEOUT_MS);
     },
