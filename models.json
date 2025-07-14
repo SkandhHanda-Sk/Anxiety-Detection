@@ -1,0 +1,32 @@
+[
+  {
+    "id": "anxiety_stacking_tuned",
+    "displayName": "Anxiety Stacking Model (Tuned)",
+    "description": "A stacking ensemble model tuned for predicting anxiety levels from typing patterns.",
+    "modelPath": "anxiety_stacking_model_tuned.onnx",
+    "featureNames": [
+      "dwell_time_mean", "dwell_time_std", "dwell_time_median", "dwell_time_count", 
+      "flight_time_mean", "flight_time_std", "flight_time_median", "flight_time_count", 
+      "inter_key_latency_mean", "inter_key_latency_std", "inter_key_latency_median", "inter_key_latency_count", 
+      "digraph_speed_mean", "digraph_speed_std", "digraph_speed_median", "digraph_speed_count", 
+      "trigraph_speed_mean", "trigraph_speed_std", "trigraph_speed_median", "trigraph_speed_count", 
+      "typing_speed_wpm", "error_rate", "error_key_count", "pause_count", "total_pause_duration_ms", 
+      "shift_count", "capslock_count", "enter_count", "tab_count"
+    ]
+  },
+  {
+    "id": "anxiety_base",
+    "displayName": "Anxiety Stacking Model (Base)",
+    "description": "A base stacking ensemble model for predicting anxiety levels.",
+    "modelPath": "anxiety_stacking_model.onnx",
+    "featureNames": [
+      "dwell_time_mean", "dwell_time_std", "dwell_time_median", "dwell_time_count", 
+      "flight_time_mean", "flight_time_std", "flight_time_median", "flight_time_count", 
+      "inter_key_latency_mean", "inter_key_latency_std", "inter_key_latency_median", "inter_key_latency_count", 
+      "digraph_speed_mean", "digraph_speed_std", "digraph_speed_median", "digraph_speed_count", 
+      "trigraph_speed_mean", "trigraph_speed_std", "trigraph_speed_median", "trigraph_speed_count", 
+      "typing_speed_wpm", "error_rate", "error_key_count", "pause_count", "total_pause_duration_ms", 
+      "shift_count", "capslock_count", "enter_count", "tab_count"
+    ]
+  }
+]

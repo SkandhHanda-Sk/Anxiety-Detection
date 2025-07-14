@@ -3,30 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-time Typing Insight</title>
+    <title>Typing Insight & Analysis</title>
     <!-- ONNX Runtime for Web -->
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <!-- Chart.js for the real-time graph -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
         :root {
-            --color-bg: #121212;
-            --color-surface: rgba(30, 30, 30, 0.6);
-            --color-primary: #00bfa5;
-            --color-secondary: #aa77ff;
-            --color-text: #e0e0e0;
-            --color-text-muted: #a0a0a0;
-            --color-border: rgba(255, 255, 255, 0.1);
-            --color-shadow: rgba(0, 0, 0, 0.5);
-            --color-glow-primary: rgba(0, 191, 165, 0.3);
-            --color-glow-secondary: rgba(170, 119, 255, 0.3);
-    
-            --font-family: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+            /* --- LIGHT THEME PALETTE --- */
+            --color-bg: #f4f4f8; /* Very light, slightly cool gray */
+            --color-surface: #ffffff; /* Pure white for cards */
+            --color-primary: #009688; /* A slightly desaturated teal for better readability */
+            --color-secondary: #7e57c2; /* A slightly desaturated purple */
             
-            --low-anxiety-color: #00bfa5;
-            --mid-anxiety-color: #ffab00;
-            --high-anxiety-color: #ff5252;
-            --idle-color: #555;
+            --color-text: #212121; /* Dark gray for main text */
+            --color-text-muted: #616161; /* Medium gray for muted text */
+            --color-border: rgba(0, 0, 0, 0.1); /* Subtle black border */
+            --color-grid: rgba(0, 0, 0, 0.08); /* Even more subtle grid lines */
+
+            --color-shadow: rgba(90, 100, 120, 0.15); /* Softer, cooler shadow */
+            --color-glow-primary: rgba(0, 150, 136, 0.25);
+            --color-glow-secondary: rgba(126, 87, 194, 0.25);
+    
+            --low-anxiety-color: #009688; /* Matches primary */
+            --mid-anxiety-color: #ffab00; /* Amber */
+            --high-anxiety-color: #f44336; /* Material Red */
+            --idle-color: #e0e0e0; /* Light gray for idle state */
+
+            --feedback-info-bg: #e3f2fd;
+            --feedback-info-text: #1565c0;
+            --feedback-positive-bg: #e8f5e9;
+            --feedback-positive-text: #2e7d32;
+            --feedback-suggestion-bg: #fffde7;
+            --feedback-suggestion-text: #f57f17;
+            --feedback-error-bg: #ffebee;
+            --feedback-error-text: #c62828;
     
             --ease-out-cubic: cubic-bezier(0.215, 0.610, 0.355, 1.000);
             --ease-in-out-quad: cubic-bezier(0.455, 0.030, 0.515, 0.955);
@@ -51,14 +64,14 @@
         }
 
         @keyframes subtle-glow {
-            0% { box-shadow: 0 0 20px var(--color-glow-secondary); }
-            50% { box-shadow: 0 0 25px var(--color-glow-secondary); }
-            100% { box-shadow: 0 0 20px var(--color-glow-secondary); }
+            0% { box-shadow: 0 0 15px var(--color-glow-secondary); }
+            50% { box-shadow: 0 0 20px var(--color-glow-secondary); }
+            100% { box-shadow: 0 0 15px var(--color-glow-secondary); }
         }
     
         /* --- General & Body Styles --- */
         body {
-            font-family: var(--font-family);
+            font-family: 'Inter', sans-serif;
             background-color: var(--color-bg);
             color: var(--color-text);
             margin: 0;
@@ -69,10 +82,9 @@
             padding: 1rem;
             box-sizing: border-box;
             
-            background: linear-gradient(45deg, var(--color-bg), #2c2c2c, #121212);
+            background: linear-gradient(45deg, var(--color-bg), #e9e9f2, var(--color-bg));
             background-size: 400% 400%;
             animation: breathing-background 30s ease infinite;
-            transition: background 1.5s var(--ease-in-out-quad);
         }
     
         /* --- Layout & Container --- */
@@ -81,14 +93,22 @@
             flex-wrap: wrap;
             gap: 2rem;
             width: 100%;
-            max-width: 1200px;
+            max-width: 1400px;
             animation: fade-in 1s var(--ease-out-cubic) forwards;
         }
     
         /* --- Panels & Cards --- */
-        .input-panel, .output-panel {
-            flex: 1;
+        .input-panel {
+            flex: 1 1 400px;
+            max-width: 450px;
             min-width: 320px;
+        }
+        .output-panel {
+            flex: 2 1 600px;
+            min-width: 400px;
+        }
+
+        .input-panel, .output-panel {
             background: var(--color-surface);
             border-radius: 20px;
             padding: 2rem;
@@ -96,28 +116,6 @@
             display: flex;
             flex-direction: column;
             border: 1px solid var(--color-border);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            transition: transform 0.5s var(--ease-out-cubic), box-shadow 0.5s var(--ease-out-cubic);
-            position: relative;
-            overflow: hidden;
-        }
-        .input-panel::before, .output-panel::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            border-radius: 20px;
-            border: 1px solid transparent;
-            background: linear-gradient(45deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05)) border-box;
-            -webkit-mask: 
-                linear-gradient(#fff 0 0) padding-box, 
-                linear-gradient(#fff 0 0);
-            mask:
-                linear-gradient(#fff 0 0) padding-box,
-                linear-gradient(#fff 0 0);
-            -webkit-mask-composite: destination-out;
-            mask-composite: exclude;
-            pointer-events: none;
         }
     
         /* --- Typography & Text Elements --- */
@@ -131,7 +129,7 @@
         .input-panel h1 span {
             font-weight: 700;
             color: var(--color-primary);
-            text-shadow: 0 0 15px var(--color-glow-primary);
+            text-shadow: 0 0 20px var(--color-glow-primary);
         }
         .input-panel p {
             color: var(--color-text-muted);
@@ -144,12 +142,12 @@
         textarea {
             width: 100%;
             flex-grow: 1;
-            background: rgba(0,0,0,0.3);
+            background: rgba(0,0,0,0.02);
             border: 1px solid var(--color-border);
             border-radius: 12px;
             color: var(--color-text);
             font-size: 1rem;
-            font-family: var(--font-family);
+            font-family: 'Inter', sans-serif;
             padding: 1rem;
             box-sizing: border-box;
             resize: none;
@@ -162,7 +160,7 @@
         }
         textarea::placeholder {
             color: var(--color-text-muted);
-            opacity: 0.7;
+            opacity: 0.8;
         }
     
         .controls {
@@ -180,18 +178,18 @@
 
         #model-selector {
             width: 100%;
-            background: rgba(0,0,0,0.3);
+            background-color: transparent;
             color: var(--color-text-muted);
             border: 1px solid var(--color-border);
             border-radius: 8px;
             padding: 0.6rem 1rem;
-            font-family: var(--font-family);
+            font-family: 'Inter', sans-serif;
             font-size: 0.9rem;
             cursor: pointer;
             -webkit-appearance: none;
             -moz-appearance: none;
             appearance: none;
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a0a0a0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23616161' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
             background-repeat: no-repeat;
             background-position: right 0.7rem center;
             background-size: 1em;
@@ -215,65 +213,71 @@
             cursor: pointer;
             font-weight: 500;
             transition: all 0.3s var(--ease-out-cubic);
-            transform: scale(1);
-            white-space: nowrap;
             display: flex;
             align-items: center;
             gap: 0.5rem;
         }
-        #reset-button:hover {
-            background: var(--color-secondary);
-            color: #111;
-            border-color: var(--color-secondary);
-            transform: scale(1.05);
-            box-shadow: 0 5px 15px var(--color-glow-secondary);
-        }
-        #reset-button:active {
-            transform: scale(0.98);
-            transition-duration: 0.1s;
-        }
         #reset-button svg {
             width: 16px;
             height: 16px;
-            stroke: currentColor;
+        }
+        #reset-button:hover {
+            background: var(--color-secondary);
+            color: #fff;
+            border-color: var(--color-secondary);
+            box-shadow: 0 5px 15px var(--color-glow-secondary);
+        }
+        #reset-button:hover svg {
+            stroke: #fff;
         }
     
-        /* --- Output Panel: Status, Gauge & Metrics --- */
+        /* --- Output Panel: Status, Gauge, Chart & Metrics --- */
         .output-panel {
             align-items: center;
-            justify-content: center;
-            text-align: center;
+            justify-content: flex-start;
         }
         #status {
             font-size: 1.1rem;
             color: var(--color-text-muted);
-            margin-bottom: 2rem;
+            margin-bottom: 1rem;
             height: 2rem;
             transition: color 0.5s var(--ease-in-out-quad);
             font-weight: 500;
+            width: 100%;
+            text-align: center;
         }
         .loading {
             animation: pulse 1.5s var(--ease-in-out-quad) infinite;
         }
     
+        .analysis-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+
         .gauge-container {
             position: relative;
-            width: 250px;
-            height: 250px;
+            width: 280px; /* Increased size */
+            height: 280px; /* Increased size */
+            flex-shrink: 0;
         }
         .gauge-svg {
             width: 100%;
             height: 100%;
             transform: rotate(-90deg);
-            filter: drop-shadow(0 5px 10px rgba(0,0,0,0.3));
+            filter: drop-shadow(0 5px 10px var(--color-shadow));
         }
         .gauge-bg, .gauge-fg {
             fill: none;
-            stroke-width: 20;
+            stroke-width: 24; /* Adjusted for size */
             stroke-linecap: round;
         }
         .gauge-bg {
-            stroke: rgba(0,0,0,0.4);
+            stroke: rgba(0, 0, 0, 0.08);
         }
         .gauge-fg {
             stroke: var(--idle-color);
@@ -284,60 +288,96 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            transition: color 1s var(--ease-in-out-quad);
             width: 100%;
+            text-align: center;
         }
         .gauge-value {
-            font-size: 4rem;
+            font-size: 4.5rem; /* Increased size */
             font-weight: 700;
             color: var(--color-text);
-            text-shadow: 0 0 10px rgba(0,0,0,0.5);
-            display: inline-block;
-            min-width: 3ch;
         }
         .gauge-label {
-            font-size: 1rem;
+            font-size: 1.1rem; /* Increased size */
             color: var(--color-text-muted);
             margin-top: -10px;
             font-weight: 500;
         }
         .gauge-value.idle::after {
             content: 'Idle';
-            font-size: 2.5rem;
+            font-size: 3rem; /* Increased size */
             font-weight: 400;
             color: var(--color-text-muted);
         }
     
+        .chart-container {
+            flex-grow: 1;
+            height: 220px; /* Decreased size */
+            position: relative;
+        }
+        #anxiety-chart {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        /* --- Feedback Mechanism --- */
+        #feedback-container {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            transition: background-color 0.5s ease, opacity 0.5s ease;
+            opacity: 0;
+            min-height: 60px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        #feedback-container.visible {
+            opacity: 1;
+        }
+        #feedback-container.info { background-color: var(--feedback-info-bg); color: var(--feedback-info-text); }
+        #feedback-container.positive { background-color: var(--feedback-positive-bg); color: var(--feedback-positive-text); }
+        #feedback-container.suggestion { background-color: var(--feedback-suggestion-bg); color: var(--feedback-suggestion-text); }
+        #feedback-container.error { background-color: var(--feedback-error-bg); color: var(--feedback-error-text); }
+        
+        .feedback-message {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        .feedback-advice {
+            font-weight: 400;
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-top: 0.25rem;
+        }
+
         .metrics-container {
-            margin-top: 2rem;
+            margin-top: 1rem;
             width: 100%;
         }
         .metrics-container h3 {
-            font-weight: 500;
-            color: var(--color-text-muted);
+            font-weight: 400;
+            color: var(--color-text);
             border-bottom: 1px solid var(--color-border);
             padding-bottom: 0.75rem;
             margin-bottom: 1.5rem;
             text-align: left;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            opacity: 0.8;
         }
         .metrics-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); /* Adjusted size */
             gap: 1rem;
             text-align: left;
         }
         .metric {
-            background: rgba(0,0,0,0.2);
+            background: #fafafa;
             padding: 1rem;
             border-radius: 12px;
-            border: 1px solid transparent;
-            transition: transform 0.3s var(--ease-out-cubic), box-shadow 0.3s var(--ease-out-cubic), border-color 0.3s var(--ease-out-cubic);
-            position: relative;
-        }
-        .metric:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-            border-color: var(--color-border);
+            border: 1px solid var(--color-border);
         }
         .metric-label {
             font-size: 0.85rem;
@@ -360,33 +400,36 @@
             color: var(--color-secondary);
         }
 
-        /* --- Custom Tooltip --- */
         #custom-tooltip {
             position: fixed;
-            background: #222;
+            background: var(--color-surface);
             color: var(--color-text);
             padding: 0.5rem 1rem;
             border-radius: 8px;
             font-size: 0.85rem;
             pointer-events: none;
             opacity: 0;
-            transform: translate(-50%, calc(-100% - 15px)) scale(0.9);
+            transform: translate(-50%, calc(-100% - 15px));
             transition: opacity 0.2s ease, transform 0.2s ease;
             z-index: 1000;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            box-shadow: 0 5px 15px var(--color-shadow);
             border: 1px solid var(--color-border);
             max-width: 250px;
         }
         #custom-tooltip.visible {
             opacity: 1;
-            transform: translate(-50%, calc(-100% - 15px)) scale(1);
         }
     
         /* --- Responsive Design --- */
+        @media (max-width: 1200px) {
+            .analysis-display {
+                flex-direction: column;
+            }
+        }
         @media (max-width: 992px) {
             body { align-items: flex-start; padding: 1.5rem; }
-            .container { flex-direction: column; gap: 1.5rem; }
-            .input-panel, .output-panel { min-width: 0; }
+            .container { flex-direction: column; gap: 1.5rem; max-width: 100%; }
+            .input-panel, .output-panel { min-width: 0; max-width: 100%; }
         }
     
         @media (max-width: 600px) {
@@ -395,6 +438,7 @@
             .input-panel, .output-panel { padding: 1.5rem; }
             .gauge-container { width: 220px; height: 220px; }
             .gauge-value { font-size: 3.5rem; }
+            .analysis-display { gap: 1.5rem; }
         }
     </style>
 </head>
@@ -418,16 +462,29 @@
         </div>
         <div class="output-panel">
             <div id="status" role="status" aria-live="polite"></div>
-            <div class="gauge-container">
-                <svg class="gauge-svg" viewBox="0 0 120 120">
-                    <circle class="gauge-bg" cx="60" cy="60" r="50"></circle>
-                    <circle id="gauge-fg" class="gauge-fg" cx="60" cy="60" r="50"></circle>
-                </svg>
-                <div class="gauge-text">
-                    <span id="gauge-value" class="gauge-value" aria-live="polite"></span>
-                    <div id="gauge-label" class="gauge-label">Anxiety Score</div>
+            
+            <div class="analysis-display">
+                <div class="gauge-container">
+                    <svg class="gauge-svg" viewBox="0 0 124 124">
+                        <circle class="gauge-bg" cx="62" cy="62" r="50"></circle>
+                        <circle id="gauge-fg" class="gauge-fg" cx="62" cy="62" r="50"></circle>
+                    </svg>
+                    <div class="gauge-text">
+                        <span id="gauge-value" class="gauge-value" aria-live="polite"></span>
+                        <div id="gauge-label" class="gauge-label">Anxiety Score</div>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="anxiety-chart"></canvas>
                 </div>
             </div>
+
+            <!-- Feedback Panel -->
+            <div id="feedback-container">
+                <span class="feedback-message"></span>
+                <span class="feedback-advice"></span>
+            </div>
+
             <div class="metrics-container">
                 <h3>Live Typing DNA</h3>
                 <div class="metrics-grid">
@@ -452,13 +509,6 @@
                         </div>
                         <div id="metric-dwell" class="metric-value">–</div>
                     </div>
-                    <div class="metric" data-tooltip="The number of significant pauses in your typing rhythm.">
-                        <div class="metric-label">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="10"/></svg>
-                            Pause Count
-                        </div>
-                        <div id="metric-pause" class="metric-value">–</div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -468,30 +518,28 @@
 'use strict';
 
 // --- 0. CONFIGURATION & CONSTANTS ---
-const ERROR_KEYS = new Set(['Backspace', 'Delete']);
-const SPECIAL_KEYS = new Set(['Shift', 'CapsLock', 'Enter', 'Tab']);
-const MODIFIER_KEYS = new Set(['Control', 'Alt', 'Meta']);
-const PAUSE_THRESHOLD_MS = 2000;
-const ANALYSIS_INTERVAL_MS = 2500;
-const MIN_EVENTS_FOR_ANALYSIS = 30;
-const INACTIVITY_TIMEOUT_MS = 5000;
-const ANXIETY_SCORE_MAX = 100.0; // The maximum value of your model's output scale
+const CONFIG = {
+    ERROR_KEYS: new Set(['Backspace', 'Delete']),
+    SPECIAL_KEYS: new Set(['Shift', 'CapsLock', 'Enter', 'Tab']),
+    MODIFIER_KEYS: new Set(['Control', 'Alt', 'Meta']),
+    PAUSE_THRESHOLD_MS: 2000,
+    ANALYSIS_INTERVAL_MS: 2500,
+    MIN_EVENTS_FOR_ANALYSIS: 30,
+    INACTIVITY_TIMEOUT_MS: 5000,
+    STALE_KEY_THRESHOLD_MS: 5000, // For cleaning up missed keyup events
+    ANXIETY_SCORE_MAX: 100.0,
+    SLIDING_WINDOW_MS: 15000,
+    SMOOTHING_FACTOR: 0.2,
+    CHART_MAX_DATAPOINTS: 15,
+};
 
-// --- IMPLEMENTATION: Added constants for sliding window and smoothing ---
-const SLIDING_WINDOW_MS = 15000; // Analyze the last 15 seconds of typing.
-const SMOOTHING_FACTOR = 0.2;    // EMA smoothing factor. Lower = smoother, higher = more responsive.
-
-// --- 1. LOGGER ---
+// --- 1. ROBUST LOGGER ---
 const Logger = {
-    info(message, data = '') {
-        console.log(`[INFO] ${new Date().toISOString()}: ${message}`, data);
-    },
-    warn(message) {
-        console.warn(`[WARN] ${new Date().toISOString()}: ${message}`);
-    },
-    error(message, errorObj = '') {
-        console.error(`[ERROR] ${new Date().toISOString()}: ${message}`, errorObj);
-    }
+    prefix: (level) => `[${level}] ${new Date().toISOString()}:`,
+    info(message, data = '') { console.log(this.prefix('INFO'), message, data); },
+    warn(message, data = '') { console.warn(this.prefix('WARN'), message, data); },
+    error(message, errorObj = '') { console.error(this.prefix('ERROR'), message, errorObj); },
+    debug(message, data = '') { console.debug(this.prefix('DEBUG'), message, data); }
 };
 
 // --- 2. STATE MANAGEMENT ---
@@ -499,13 +547,15 @@ const State = {
     keyEvents: [],
     isAnalyzing: false,
     isTabActive: true,
+    isIdle: true,
     session: null,
     lastKeyEventTime: performance.now(),
     inactivityTimer: null,
-    // --- IMPLEMENTATION: Added state for the smoothed score ---
     smoothedAnxietyScore: null,
     currentModelConfig: null,
-    availableModels: [] // Will be populated from models.json
+    availableModels: [],
+    chart: null,
+    previousStats: null, // NEW: For calculating consistency metrics
 };
 
 // --- 3. UI MANAGER ---
@@ -522,14 +572,18 @@ const UIManager = {
             metricWpm: document.getElementById('metric-wpm'),
             metricError: document.getElementById('metric-error'),
             metricDwell: document.getElementById('metric-dwell'),
-            metricPause: document.getElementById('metric-pause'),
             resetButton: document.getElementById('reset-button'),
             modelSelector: document.getElementById('model-selector'),
-            tooltip: document.getElementById('custom-tooltip')
+            tooltip: document.getElementById('custom-tooltip'),
+            chartCanvas: document.getElementById('anxiety-chart'),
+            feedbackContainer: document.getElementById('feedback-container'),
+            feedbackMessage: document.querySelector('#feedback-container .feedback-message'),
+            feedbackAdvice: document.querySelector('#feedback-container .feedback-advice'),
         };
         const radius = this.elements.gaugeFg.r.baseVal.value;
         this.gaugeCircumference = 2 * Math.PI * radius;
         this.elements.gaugeFg.style.strokeDasharray = this.gaugeCircumference;
+        this.initChart();
         this.resetUI();
         this.setupTooltips();
         Logger.info("UI Manager initialized.");
@@ -538,20 +592,34 @@ const UIManager = {
     resetUI() {
         this.elements.textInput.value = '';
         this.updateGauge(0, true);
-        this.updateLiveMetrics({ wpm: '–', errorRate: '–', avgDwell: '–', pauseCount: '–' });
-        this.setStatus('Waiting for input...', 'var(--color-text-muted)');
-        Logger.info("UI has been reset.");
+        this.updateLiveMetrics({ wpm: '–', errorRate: '–', avgDwell: '–' });
+        this.setStatus('');
+        this.updateFeedback(
+            "Ready when you are!",
+            "Start typing in the box above to begin the analysis.",
+            'info'
+        );
+        this.resetChart();
+        Logger.info("UI has been reset to initial state.");
+    },
+
+    activateGauge() {
+        if (State.isIdle) {
+            Logger.info("Activating gauge from idle state.");
+            this.updateGauge(0, false);
+            State.isIdle = false;
+        }
     },
 
     updateGauge(value, isIdle = false) {
-        // This function now correctly receives a value between 0.0 and 1.0
+        State.isIdle = isIdle; // Keep state in sync
         const percentage = isIdle ? 0 : Math.max(0, Math.min(1, value));
         const offset = this.gaugeCircumference * (1 - percentage);
         this.elements.gaugeFg.style.strokeDashoffset = offset;
         
         let color = 'var(--idle-color)';
         if (!isIdle) {
-            if (percentage < 0.4) color = 'var(--low-anxiety-color)';
+            if (percentage < 0.45) color = 'var(--low-anxiety-color)';
             else if (percentage < 0.7) color = 'var(--mid-anxiety-color)';
             else color = 'var(--high-anxiety-color)';
         }
@@ -570,13 +638,18 @@ const UIManager = {
         this.elements.metricWpm.textContent = metrics.wpm;
         this.elements.metricError.textContent = metrics.errorRate;
         this.elements.metricDwell.textContent = metrics.avgDwell;
-        this.elements.metricPause.textContent = metrics.pauseCount;
     },
 
     setStatus(message, color = 'var(--color-text-muted)', isLoading = false) {
         this.elements.status.textContent = message;
         this.elements.status.style.color = color;
         this.elements.status.classList.toggle('loading', isLoading);
+    },
+
+    updateFeedback(message, advice, type) {
+        this.elements.feedbackContainer.className = `feedback-container visible ${type}`;
+        this.elements.feedbackMessage.textContent = message;
+        this.elements.feedbackAdvice.textContent = advice;
     },
 
     populateModelSelector() {
@@ -588,20 +661,66 @@ const UIManager = {
             option.title = model.description;
             this.elements.modelSelector.appendChild(option);
         });
+        Logger.info(`Populated model selector with ${State.availableModels.length} models.`);
+    },
+    
+    initChart() {
+        const ctx = this.elements.chartCanvas.getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, this.elements.chartCanvas.height);
+        gradient.addColorStop(0, 'rgba(126, 87, 194, 0.3)'); 
+        gradient.addColorStop(1, 'rgba(126, 87, 194, 0)');
+
+        const style = getComputedStyle(document.body);
+        const gridColor = style.getPropertyValue('--color-grid').trim();
+        const textColorMuted = style.getPropertyValue('--color-text-muted').trim();
+        const fontFamily = style.getPropertyValue('font-family').trim();
+        const secondaryColor = style.getPropertyValue('--color-secondary').trim();
+
+        State.chart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'Anxiety Score', data: [], borderColor: secondaryColor, backgroundColor: gradient, borderWidth: 2, pointRadius: 0, tension: 0.4, fill: true }] },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, max: 100, ticks: { color: textColorMuted, font: { family: fontFamily } }, grid: { color: gridColor } },
+                    x: { ticks: { display: false }, grid: { display: false } }
+                },
+                plugins: { legend: { display: false }, tooltip: { enabled: false } }
+            }
+        });
+    },
+
+    updateChart(newScore) {
+        const chart = State.chart;
+        if (!chart) return;
+        const score = Math.round(newScore * 100);
+
+        chart.data.labels.push('');
+        chart.data.datasets[0].data.push(score);
+
+        if (chart.data.labels.length > CONFIG.CHART_MAX_DATAPOINTS) {
+            chart.data.labels.shift();
+            chart.data.datasets[0].data.shift();
+        }
+        chart.update('none');
+    },
+
+    resetChart() {
+        if (!State.chart) return;
+        State.chart.data.labels = [];
+        State.chart.data.datasets[0].data = [];
+        State.chart.update('none');
     },
 
     setupTooltips() {
-        const metrics = document.querySelectorAll('.metric');
-        metrics.forEach(metric => {
+        document.querySelectorAll('.metric').forEach(metric => {
             metric.addEventListener('mouseenter', (e) => {
                 this.elements.tooltip.textContent = e.currentTarget.dataset.tooltip;
                 this.elements.tooltip.style.left = `${e.clientX}px`;
                 this.elements.tooltip.style.top = `${e.clientY}px`;
                 this.elements.tooltip.classList.add('visible');
             });
-            metric.addEventListener('mouseleave', () => {
-                this.elements.tooltip.classList.remove('visible');
-            });
+            metric.addEventListener('mouseleave', () => { this.elements.tooltip.classList.remove('visible'); });
             metric.addEventListener('mousemove', (e) => {
                 this.elements.tooltip.style.left = `${e.clientX}px`;
                 this.elements.tooltip.style.top = `${e.clientY}px`;
@@ -623,17 +742,24 @@ const FeatureEngine = {
         const median = count % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
         return { mean, std, median, count };
     },
-
-    calculate(keyEvents, featureNames) {
-        if (keyEvents.length < MIN_EVENTS_FOR_ANALYSIS) return null;
+    calculate(keyEvents, featureNames, previousStats) {
+        if (keyEvents.length < CONFIG.MIN_EVENTS_FOR_ANALYSIS) {
+            Logger.debug(`Skipping feature calculation: not enough events (${keyEvents.length}/${CONFIG.MIN_EVENTS_FOR_ANALYSIS}).`);
+            return null;
+        }
         const keyPresses = this.processEvents(keyEvents);
-        if (keyPresses.length < 15) return null;
+        if (keyPresses.length < 15) {
+            Logger.debug(`Skipping feature calculation: not enough processed key presses (${keyPresses.length}/15).`);
+            return null;
+        }
         const totalTimeSec = (keyEvents[keyEvents.length - 1].timestamp - keyEvents[0].timestamp) / 1000;
-        if (totalTimeSec < 2) return null;
+        if (totalTimeSec < 2) {
+            Logger.debug(`Skipping feature calculation: total time too short (${totalTimeSec.toFixed(2)}s).`);
+            return null;
+        }
 
         const dwellTimes = [], flightTimes = [], interKeyLatencies = [], digraphSpeeds = [], trigraphSpeeds = [];
         let specialKeyCounts = { Shift: 0, CapsLock: 0, Enter: 0, Tab: 0 };
-
         for (let i = 0; i < keyPresses.length; i++) {
             const press = keyPresses[i];
             dwellTimes.push(press.duration);
@@ -647,7 +773,6 @@ const FeatureEngine = {
             if (i >= 1) digraphSpeeds.push(press.upTime - keyPresses[i-1].downTime);
             if (i >= 2) trigraphSpeeds.push(press.upTime - keyPresses[i-2].downTime);
         }
-
         const featureMap = {};
         const dwellStats = this.getStats(dwellTimes);
         featureMap.dwell_time_mean = dwellStats.mean; featureMap.dwell_time_std = dwellStats.std; featureMap.dwell_time_median = dwellStats.median; featureMap.dwell_time_count = dwellStats.count;
@@ -660,16 +785,20 @@ const FeatureEngine = {
         const trigraphStats = this.getStats(trigraphSpeeds);
         featureMap.trigraph_speed_mean = trigraphStats.mean; featureMap.trigraph_speed_std = trigraphStats.std; featureMap.trigraph_speed_median = trigraphStats.median; featureMap.trigraph_speed_count = trigraphStats.count;
         
+        // NEW: Consistency Feature
+        // IMPORTANT: Your model must be trained with this new feature! The feature name is 'dwell_time_std_delta'.
+        featureMap.dwell_time_std_delta = previousStats ? (dwellStats.std - previousStats.dwell_time_std) : 0;
+
         const typedCharCount = keyPresses.filter(p => p.key.length === 1).length;
         featureMap.typing_speed_wpm = (typedCharCount / 5) / (totalTimeSec / 60);
-        const errorKeyCount = keyEvents.filter(e => e.type === 'keydown' && ERROR_KEYS.has(e.key)).length;
+        const errorKeyCount = keyEvents.filter(e => e.type === 'keydown' && CONFIG.ERROR_KEYS.has(e.key)).length;
         featureMap.error_key_count = errorKeyCount;
-        featureMap.error_rate = (errorKeyCount / keyPresses.length) * 100;
-        const pauses = flightTimes.filter(ft => ft > PAUSE_THRESHOLD_MS);
+        featureMap.error_rate = (keyPresses.length > 0) ? (errorKeyCount / keyPresses.length) * 100 : 0;
+        const pauses = flightTimes.filter(ft => ft > CONFIG.PAUSE_THRESHOLD_MS);
         featureMap.pause_count = pauses.length;
         featureMap.total_pause_duration_ms = pauses.reduce((a, b) => a + b, 0);
         featureMap.shift_count = specialKeyCounts.Shift; featureMap.capslock_count = specialKeyCounts.CapsLock; featureMap.enter_count = specialKeyCounts.Enter; featureMap.tab_count = specialKeyCounts.Tab;
-
+        
         const featureArray = [];
         for (const name of featureNames) {
             if (featureMap.hasOwnProperty(name)) {
@@ -686,20 +815,25 @@ const FeatureEngine = {
         }
         
         const displayMetrics = {
-            wpm: featureMap.typing_speed_wpm.toFixed(0),
-            errorRate: featureMap.error_rate.toFixed(1),
-            avgDwell: featureMap.dwell_time_mean.toFixed(0),
-            pauseCount: featureMap.pause_count
+            wpm: parseFloat(featureMap.typing_speed_wpm.toFixed(0)),
+            errorRate: parseFloat(featureMap.error_rate.toFixed(1)),
+            avgDwell: parseFloat(featureMap.dwell_time_mean.toFixed(0)),
+            dwellStdDelta: parseFloat(featureMap.dwell_time_std_delta.toFixed(2)),
         };
-        
-        return { displayMetrics, featureArray };
-    },
 
+        const currentStats = {
+            dwell_time_std: dwellStats.std,
+        };
+
+        Logger.debug("Feature calculation successful.", { displayMetrics });
+        return { displayMetrics, featureArray, currentStats };
+    },
     processEvents(events) {
         const presses = [];
         const downEvents = new Map();
+        const now = performance.now();
         for (const event of events) {
-            if (MODIFIER_KEYS.has(event.key)) continue;
+            if (CONFIG.MODIFIER_KEYS.has(event.key)) continue;
             if (event.type === 'keydown' && !downEvents.has(event.key)) {
                 downEvents.set(event.key, event.timestamp);
             } else if (event.type === 'keyup' && downEvents.has(event.key)) {
@@ -709,11 +843,75 @@ const FeatureEngine = {
                 downEvents.delete(event.key);
             }
         }
+        // NEW: Clean up stale keydown events (e.g., from Alt+Tabbing)
+        for (const [key, timestamp] of downEvents.entries()) {
+            if (now - timestamp > CONFIG.STALE_KEY_THRESHOLD_MS) {
+                Logger.warn(`Removing stale keydown event for key: ${key}`);
+                downEvents.delete(key);
+            }
+        }
         return presses;
     }
 };
 
-// --- 5. MAIN APPLICATION ORCHESTRATOR ---
+// --- 5. NEW: INTELLIGENT FEEDBACK ENGINE ---
+const FeedbackEngine = {
+    getFeedback(score, metrics) {
+        if (score < 0.45) {
+            return {
+                message: "Looking good!",
+                advice: "Your typing appears calm and focused. Keep up the steady rhythm.",
+                type: "positive"
+            };
+        }
+        if (score >= 0.75) {
+            if (metrics.errorRate > 8) {
+                return {
+                    message: "High error rate detected.",
+                    advice: "It seems like mistakes are causing tension. Try slowing down a bit to focus on accuracy.",
+                    type: "suggestion"
+                };
+            }
+            if (metrics.dwellStdDelta > 15) {
+                return {
+                    message: "Rhythm seems inconsistent.",
+                    advice: "Your typing pace is fluctuating. Take a deep breath and try to find a more consistent, comfortable rhythm.",
+                    type: "suggestion"
+                };
+            }
+             if (metrics.avgDwell > 120) {
+                return {
+                    message: "Typing seems hesitant.",
+                    advice: "You're holding down keys for longer than usual. Try to relax your hands and type more deliberately.",
+                    type: "suggestion"
+                };
+            }
+            return {
+                message: "Typing seems a bit rushed.",
+                advice: "If you're feeling tense, focus on typing more deliberately rather than quickly. A calm pace is a fast pace.",
+                type: "suggestion"
+            };
+        }
+        if (score >= 0.45) {
+             if (metrics.errorRate > 5) {
+                return {
+                    message: "A few more errors than usual.",
+                    advice: "No worries, just a reminder to maintain a steady pace to keep mistakes low.",
+                    type: "suggestion"
+                };
+            }
+            return {
+                message: "A little fluctuation detected.",
+                advice: "This is normal as you focus. Try to maintain a comfortable, even pace.",
+                type: "suggestion"
+            };
+        }
+        // Fallback
+        return { message: "Analysis in progress...", advice: "Keep typing to see more detailed feedback.", type: "info" };
+    }
+};
+
+// --- 6. MAIN APPLICATION ORCHESTRATOR ---
 const App = {
     async init() {
         Logger.info("Application initializing...");
@@ -728,51 +926,39 @@ const App = {
             await this.loadModel(State.availableModels[0].id);
         } else {
             UIManager.setStatus("No models found. Check models.json.", 'var(--high-anxiety-color)');
+            UIManager.updateFeedback("Could not find analysis models.", "Please ensure a 'models.json' file is present and correctly formatted.", "error");
         }
-        setInterval(this.runAnalysisLoop.bind(this), ANALYSIS_INTERVAL_MS);
+        setInterval(this.runAnalysisLoop.bind(this), CONFIG.ANALYSIS_INTERVAL_MS);
         Logger.info("Application initialized and analysis loop started.");
     },
-
     async fetchModels() {
         try {
-            const modelsJsonContent = `
-            [
-              {
-                "id": "anxiety_stacking_tuned",
-                "displayName": "Anxiety Stacking Model (Tuned)",
-                "description": "A stacking ensemble model tuned for predicting anxiety levels from typing patterns.",
-                "modelPath": "anxiety_stacking_model_tuned.onnx",
-                "featureNames": ["dwell_time_mean", "dwell_time_std", "dwell_time_median", "dwell_time_count", "flight_time_mean", "flight_time_std", "flight_time_median", "flight_time_count", "inter_key_latency_mean", "inter_key_latency_std", "inter_key_latency_median", "inter_key_latency_count", "digraph_speed_mean", "digraph_speed_std", "digraph_speed_median", "digraph_speed_count", "trigraph_speed_mean", "trigraph_speed_std", "trigraph_speed_median", "trigraph_speed_count", "typing_speed_wpm", "error_rate", "error_key_count", "pause_count", "total_pause_duration_ms", "shift_count", "capslock_count", "enter_count", "tab_count"]
-              },
-              {
-                "id": "anxiety_base",
-                "displayName": "Anxiety Stacking Model (Base)",
-                "description": "A base stacking ensemble model for predicting anxiety levels.",
-                "modelPath": "anxiety_stacking_model.onnx",
-                "featureNames": ["dwell_time_mean", "dwell_time_std", "dwell_time_median", "dwell_time_count", "flight_time_mean", "flight_time_std", "flight_time_median", "flight_time_count", "inter_key_latency_mean", "inter_key_latency_std", "inter_key_latency_median", "inter_key_latency_count", "digraph_speed_mean", "digraph_speed_std", "digraph_speed_median", "digraph_speed_count", "trigraph_speed_mean", "trigraph_speed_std", "trigraph_speed_median", "trigraph_speed_count", "typing_speed_wpm", "error_rate", "error_key_count", "pause_count", "total_pause_duration_ms", "shift_count", "capslock_count", "enter_count", "tab_count"]
-              }
-            ]`;
-            State.availableModels = JSON.parse(modelsJsonContent);
-            Logger.info("Successfully loaded model configurations.", State.availableModels);
+            Logger.info("Fetching models.json...");
+            const response = await fetch('models.json');
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            State.availableModels = await response.json();
+            Logger.info("Successfully loaded model configurations from models.json.", State.availableModels);
             UIManager.populateModelSelector();
         } catch (e) {
             Logger.error("Failed to fetch or parse models.json", e);
-            UIManager.setStatus("Error loading model configs.", 'var(--high-anxiety-color)');
+            UIManager.setStatus("Error: Could not load models.json.", 'var(--high-anxiety-color)');
         }
     },
-
     handleKeyEvent(e) {
         if (e.ctrlKey || e.metaKey) return;
+        
+        UIManager.activateGauge();
+        
         State.keyEvents.push({ key: e.key, type: e.type, timestamp: performance.now() });
         State.lastKeyEventTime = performance.now();
         if (State.inactivityTimer) clearTimeout(State.inactivityTimer);
         State.inactivityTimer = setTimeout(() => {
-            Logger.warn("User inactive. Pausing gauge.");
+            Logger.warn("User inactive. Pausing gauge and providing feedback.");
             UIManager.updateGauge(0, true);
-            UIManager.setStatus("Idle. Keep typing to resume analysis.", 'var(--color-text-muted)');
-        }, INACTIVITY_TIMEOUT_MS);
+            UIManager.setStatus(''); // Clear top status
+            UIManager.updateFeedback("Paused due to inactivity.", "Resume typing to continue the analysis.", "info");
+        }, CONFIG.INACTIVITY_TIMEOUT_MS);
     },
-
     handleVisibilityChange() {
         State.isTabActive = document.visibilityState === 'visible';
         Logger.info(`Tab visibility changed. Active: ${State.isTabActive}`);
@@ -780,23 +966,26 @@ const App = {
             UIManager.setStatus("Paused - Tab is not active", 'var(--color-text-muted)');
         }
     },
-
     resetAnalysis() {
-        Logger.info("Resetting analysis state.");
+        Logger.info("Resetting analysis state and UI.");
         State.keyEvents = [];
-        // --- IMPLEMENTATION: Reset the smoothed score on reset ---
         State.smoothedAnxietyScore = null;
+        State.isIdle = true;
+        State.previousStats = null; // Reset consistency tracking
         UIManager.resetUI();
     },
-    
     async loadModel(modelId) {
         const modelConfig = State.availableModels.find(m => m.id === modelId);
-        if (!modelConfig) return;
+        if (!modelConfig) {
+            Logger.error(`Attempted to load a model with an invalid ID: ${modelId}`);
+            return;
+        }
         
         State.currentModelConfig = modelConfig;
         UIManager.elements.modelSelector.value = modelId;
         State.isAnalyzing = false;
         UIManager.setStatus(`Loading ${modelConfig.displayName}...`, 'var(--color-text-muted)', true);
+        Logger.info(`Attempting to load model: ${modelConfig.displayName}`);
         
         try {
             State.session = await ort.InferenceSession.create(modelConfig.modelPath);
@@ -804,79 +993,76 @@ const App = {
             this.resetAnalysis();
             State.isAnalyzing = true;
         } catch (e) {
-            Logger.error(`Failed to load ONNX model: ${modelConfig.modelPath}. Ensure the file exists in the same directory.`, e);
+            Logger.error(`Failed to load ONNX model: ${modelConfig.modelPath}.`, e);
             UIManager.setStatus(`Error: Could not load ${modelConfig.displayName}.`, 'var(--high-anxiety-color)');
+            UIManager.updateFeedback("Model Loading Failed.", `The file '${modelConfig.modelPath}' could not be loaded. Please check the file path and your network connection.`, "error");
             State.session = null;
         }
     },
-
     async runAnalysisLoop() {
-        if (!State.isAnalyzing || !State.isTabActive || !State.session || !State.currentModelConfig) return;
-
-        // --- IMPLEMENTATION: SLIDING WINDOW ---
-        // 1. Filter events to only include those within the sliding window.
+        if (!State.isAnalyzing || !State.isTabActive || !State.session || !State.currentModelConfig || State.isIdle) {
+            Logger.debug("Skipping analysis loop.", { isAnalyzing: State.isAnalyzing, isTabActive: State.isTabActive, hasSession: !!State.session, isIdle: State.isIdle });
+            return;
+        }
         const now = performance.now();
-        const windowStartTime = now - SLIDING_WINDOW_MS;
+        const windowStartTime = now - CONFIG.SLIDING_WINDOW_MS;
         const recentEvents = State.keyEvents.filter(e => e.timestamp >= windowStartTime);
-        // Prune old events from the main array to prevent it from growing indefinitely
-        State.keyEvents = recentEvents;
-
-        // Pass only the recent, relevant events to the feature engine.
-        const featureData = FeatureEngine.calculate(recentEvents, State.currentModelConfig.featureNames);
+        State.keyEvents = recentEvents; // Prune old events
+        
+        const featureData = FeatureEngine.calculate(recentEvents, State.currentModelConfig.featureNames, State.previousStats);
         
         if (!featureData) {
             if (State.keyEvents.length > 0) {
-                 UIManager.setStatus("Collecting more data...", 'var(--color-text-muted)');
+                 UIManager.setStatus('');
+                 UIManager.updateFeedback("Keep typing...", "We're gathering initial data to establish your baseline pattern.", "info");
             }
             return;
         }
 
+        // Update previous stats for the *next* cycle's consistency calculation
+        State.previousStats = featureData.currentStats;
+
         UIManager.updateLiveMetrics(featureData.displayMetrics);
         UIManager.setStatus("Analyzing...", 'var(--mid-anxiety-color)', true);
-
         const tensor = new ort.Tensor('float32', featureData.featureArray, [1, featureData.featureArray.length]);
-
+        
         try {
             const inputName = State.session.inputNames[0];
             const outputName = State.session.outputNames[0];
             const results = await State.session.run({ [inputName]: tensor });
-
-            // Get the raw prediction and normalize it to a 0.0 - 1.0 scale
             const rawPrediction = results[outputName].data[0];
-            const normalizedPrediction = Math.max(0, Math.min(1, rawPrediction / ANXIETY_SCORE_MAX));
-
-            // --- IMPLEMENTATION: EXPONENTIAL MOVING AVERAGE (EMA) ---
-            // 2. Apply smoothing to the normalized prediction for a stable UI.
+            const normalizedPrediction = Math.max(0, Math.min(1, rawPrediction / CONFIG.ANXIETY_SCORE_MAX));
+            
             if (State.smoothedAnxietyScore === null) {
-                // For the first prediction, set the smoothed score directly.
                 State.smoothedAnxietyScore = normalizedPrediction;
             } else {
-                // Apply the EMA formula for subsequent predictions.
-                State.smoothedAnxietyScore = (normalizedPrediction * SMOOTHING_FACTOR) + (State.smoothedAnxietyScore * (1 - SMOOTHING_FACTOR));
+                State.smoothedAnxietyScore = (normalizedPrediction * CONFIG.SMOOTHING_FACTOR) + (State.smoothedAnxietyScore * (1 - CONFIG.SMOOTHING_FACTOR));
             }
-            // ---
 
             Logger.info(`Inference complete. Raw: ${normalizedPrediction.toFixed(3)}, Smoothed: ${State.smoothedAnxietyScore.toFixed(3)}`);
-            
-            // 3. Update the UI with the SMOOTHED and stable value.
             UIManager.updateGauge(State.smoothedAnxietyScore);
-            
-            UIManager.setStatus("Analysis Complete. Keep typing.", 'var(--color-primary)');
+            UIManager.updateChart(State.smoothedAnxietyScore);
+            UIManager.setStatus(''); // Analysis is quick, clear status and rely on feedback
+
+            // NEW: Use the FeedbackEngine for intelligent, descriptive feedback
+            const feedback = FeedbackEngine.getFeedback(State.smoothedAnxietyScore, featureData.displayMetrics);
+            UIManager.updateFeedback(feedback.message, feedback.advice, feedback.type);
 
         } catch (e) {
             Logger.error('Inference failed.', e);
             UIManager.setStatus("Inference Error.", 'var(--high-anxiety-color)');
+            UIManager.updateFeedback("Analysis Error", "An issue occurred during the analysis. This can sometimes happen with unusual typing patterns. Please try resetting.", "error");
         }
     }
 };
 
 // --- APPLICATION START ---
 document.addEventListener('DOMContentLoaded', async () => {
-    if (typeof ort === 'undefined') {
+    if (typeof ort === 'undefined' || typeof Chart === 'undefined') {
         const status = document.getElementById('status');
-        status.textContent = "Error: ONNX Runtime could not be loaded. Please check your connection.";
+        status.textContent = "Error: A required library (ONNX or Chart.js) could not be loaded. Please check your connection.";
         status.style.color = 'var(--high-anxiety-color)';
-        Logger.error("ONNX Runtime (ort) is not defined. The application cannot run.");
+        Logger.error("A required library is not defined. The application cannot run.");
         return;
     }
     await App.init();
