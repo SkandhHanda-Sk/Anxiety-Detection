@@ -215,6 +215,4 @@ Best hyperparameters found:
 
 Training the final model with the best hyperparameters found...
 Final model training complete.
-
-Final Tuned Model Performance on Unseen Test Set (RMSE): 34.5039
 """
